@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 # KidsCanCode - Game Development with Pygame video series
 # Shmup game - part 1
@@ -10,20 +10,22 @@ import random
 import math
 import os
 
-WIDTH = 640
-HEIGHT = 640
-RADIUS = 300
+WIDTH = 1850
+HEIGHT = 1000
+RADIUS = 1000
 FPS = 60
 CENTER = (WIDTH/2, HEIGHT/2)
-G = 80.0
-SHIP_NUM = 20
-SHIP_SIZE = 1
+G = 200.0
+SHIP_NUM = 500
+SHIP_SIZE = 50
+MIN_SIZE = 2
 START_SPEED = 1.0
-MAX_SPEED = 20.0
+MAX_SPEED = 3.0
 FADE = False
 
 # define colors
 WHITE = (255, 255, 255)
+GRAY = (128, 128, 128)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
@@ -54,20 +56,26 @@ def SetColor():
     return (r_chan, g_chan, b_chan)
 
 class Player(pygame.sprite.Sprite):
+    Color =  (0,0,0)
+
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.Surface((SHIP_SIZE, SHIP_SIZE))
 #        self.image.fill(GREEN)
-        self.image.fill(SetColor())
+#        self.image.fill(SetColor())
+        self.Color =  SetColor()
+        self.image.fill(self.Color)
         self.rect = self.image.get_rect()
         self.locx = 0.0
         self.locy = 0.0
         self.NewPos()
         self.NewSpeed()
+        self.CheckMaxSpeed()
+#        self.image = pygame.transform.scale(self.image, (int(self.GetDistance()), int(self.GetDistance())))
 
     def NewPos(self):
-        self.locx = (WIDTH/2) - (random.randrange(RADIUS) - (RADIUS/2))
-        self.locy = (HEIGHT/2) - (random.randrange(RADIUS) - (RADIUS/2))
+        self.locx = (WIDTH/2) - ((random.randrange(RADIUS) - (RADIUS/2))/3)
+        self.locy = (HEIGHT/2) - ((random.randrange(RADIUS) - (RADIUS/2))/3)
 #        print (self.locx, self.locy)
         self.rect.centerx = self.locx
         self.rect.centery = self.locy
@@ -97,9 +105,15 @@ class Player(pygame.sprite.Sprite):
         if (self.GetDistance()==0):
             self.NewPos()
             self.NewSpeed()
-        if (self.GetDistance()<5):
+        if (self.GetDistance()<10):
             self.NewPos()
             self.NewSpeed()
+        self.CheckMaxSpeed()
+        Size = MIN_SIZE + int(SHIP_SIZE*self.GetDistance()/RADIUS)
+        self.image = pygame.transform.scale(self.image, (Size, Size))
+#        self.Color = (self.Color[0] + random.randint(-1,1), self.Color[1] + random.randint(-1,1), self.Color[2] + random.randint(-1,1))
+        self.image.fill(self.Color)
+
         self.speedx -= G*(self.rect.centerx - CENTER[0])/pow(self.GetDistance(), 3)
         self.speedy -= G*(self.rect.centery - CENTER[1])/pow(self.GetDistance(), 3)
 #        self.CheckMaxSpeed()
@@ -125,7 +139,8 @@ all_sprites = pygame.sprite.Group()
 
 fade_fill = pygame.Surface((WIDTH, HEIGHT))
 fade_fill.set_alpha(1)
-pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
+#pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
+pygame.draw.rect(fade_fill, GRAY, fade_fill.get_rect())
 
 ships = []
 for i in range(0,SHIP_NUM):

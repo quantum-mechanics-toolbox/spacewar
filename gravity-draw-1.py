@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 # KidsCanCode - Game Development with Pygame video series
 # Shmup game - part 1

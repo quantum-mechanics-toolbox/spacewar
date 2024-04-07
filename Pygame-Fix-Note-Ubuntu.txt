@@ -1,0 +1,3 @@
+add to .bashrc or .zshrc to fix gfx issue with Pygame under Ubuntu
+
+export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6
