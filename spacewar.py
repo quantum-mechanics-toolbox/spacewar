@@ -16,6 +16,7 @@ G = 80.0
 BULLET_G = G/1.0
 SHIP_NUM = 20
 SHIP_SIZE = 1
+STAR_SIZE = 50
 START_SPEED = 1.0
 MAX_SPEED = 20.0
 FADE = True
@@ -28,11 +29,12 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
+CYAN = (0, 255, 255)
 BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 ORANGE = (255,127,0)
 MONO_COLOR = ORANGE
-COLOR1 = ORANGE
+COLOR1 = CYAN
 COLOR2 = GREEN
 
 # initialize pygame and create window
@@ -168,8 +170,10 @@ class Player(pygame.sprite.Sprite):
 #        if (self.GetDistance()==0):
 #            self.NewPos()
 #            self.NewSpeed()
-        if (self.GetDistance()<10):
-            self.kill()
+        if (self.GetDistance()<STAR_SIZE):
+            self.NewPos()
+            self.NewSpeed()
+#            self.kill()
         self.speedx -= G*(self.rect.centerx - CENTER[0])/pow(self.GetDistance(), 3)
         self.speedy -= G*(self.rect.centery - CENTER[1])/pow(self.GetDistance(), 3)
 #        self.CheckMaxSpeed()
@@ -193,7 +197,8 @@ class Player(pygame.sprite.Sprite):
         thrust = AngleToCoords(self.rot, -2.0)
 #        bullet = Bullet(self.rect.centerx, self.rect.centery, self.speedx+thrust[0], self.speedy+thrust[1])
 #        bullet = Bullet(self.rect.centerx, self.rect.centery, self.speedx+thrust[1], self.speedy+thrust[0])
-        bullet = Bullet(self.rect.centerx, self.rect.centery, thrust[1], thrust[0], self.color)
+#        bullet = Bullet(self.rect.centerx, self.rect.centery, thrust[1], thrust[0], self.color)
+        bullet = Bullet(self.rect.centerx, self.rect.centery, thrust[1], thrust[0], RED)
         all_sprites.add(bullet)
         if self.playernum==1: bullets1.add(bullet)
         elif self.playernum==2: bullets2.add(bullet)
@@ -215,8 +220,8 @@ class Bullet(pygame.sprite.Sprite):
     def update(self):
         if self.GetBoundary() > RADIUS:
             self.kill()
-        if (self.GetDistance()==0):
-            self.kill()
+#        if (self.GetDistance()==0):
+#            self.kill()
         self.speedx -= BULLET_G*(self.rect.centerx - CENTER[0])/pow(self.GetDistance(), 3)
         self.speedy -= BULLET_G*(self.rect.centery - CENTER[1])/pow(self.GetDistance(), 3)
         self.locx += self.speedx
@@ -266,8 +271,8 @@ pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
 LastBulletTime1 = time.time() - BULLET_COOLDOWN
 LastBulletTime2 = time.time() - BULLET_COOLDOWN
 
-star = pygame.Surface((10,10))
-pygame.draw.circle(star, MONO_COLOR, (5,5), 5)
+star = pygame.Surface((STAR_SIZE*2,STAR_SIZE*2))
+pygame.draw.circle(star, MONO_COLOR, (STAR_SIZE,STAR_SIZE), STAR_SIZE)
 
 ships = []
 #for i in range(0,SHIP_NUM):
@@ -302,12 +307,14 @@ while running:
                     LastBulletTime2 = time.time()
     if (pygame.sprite.spritecollide(player1, bullets2, True)):
         player1.kill()
-#        time.sleep(3)
-#        player1.init()
+        time.sleep(1)
+        player1 = Player(1, 2)
+        all_sprites.add(player1)
     if (pygame.sprite.spritecollide(player2, bullets1, True)):
         player2.kill()
-#        time.sleep(3)
-#        player2.init()
+        time.sleep(1)
+        player2 = Player(2, 3)
+        all_sprites.add(player2)
 
     # Update
     HUD.update()
@@ -316,7 +323,7 @@ while running:
     # Draw / render
     if (FADE): screen.blit(fade_fill, (0,0))
     else: screen.fill(BLACK)
-    screen.blit(star, CENTER)
+    screen.blit(star, (CENTER[0]-STAR_SIZE, CENTER[1]-STAR_SIZE))
     all_sprites.draw(screen)
     # *after* drawing everything, flip the display
     pygame.display.flip()

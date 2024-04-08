@@ -244,7 +244,7 @@ LastBulletTime1 = time.time() - BULLET_COOLDOWN
 LastBulletTime2 = time.time() - BULLET_COOLDOWN
 
 star = pygame.Surface((10,10))
-pygame.draw.circle(star, MONO_COLOR, (5,5), 5)
+pygame.draw.circle(star, MONO_COLOR, (5,5), 10)
 
 ships = []
 #for i in range(0,SHIP_NUM):
@@ -275,13 +275,13 @@ while running:
                     player2.shoot()
                     LastBulletTime2 = time.time()
     if (pygame.sprite.spritecollide(player1, bullets2, True)):
-        player1.kill()
-#        time.sleep(3)
-#        player1.init()
+#        player1.kill()
+        time.sleep(3)
+        player1.init()
     if (pygame.sprite.spritecollide(player2, bullets1, True)):
-        player2.kill()
-#        time.sleep(3)
-#        player2.init()
+#        player2.kill()
+        time.sleep(3)
+        player2.init()
 
     # Update
     all_sprites.update()
