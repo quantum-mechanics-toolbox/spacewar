@@ -94,7 +94,7 @@ class Player(pygame.sprite.Sprite):
             self.locx = (WIDTH*3/4)- (random.randrange(RADIUS) - (RADIUS/2))
         self.locy = (HEIGHT/2) - (random.randrange(RADIUS) - (RADIUS/2))
 #        self.NewPos()
-        
+
     def DrawType(self, ShipType):
         if ShipType==1:
             pygame.draw.polygon(self.image_orig, (self.color[0]/4, self.color[1]/4,self.color[2]/4), ((20,0),(10,40),(30,40)))
@@ -129,7 +129,7 @@ class Player(pygame.sprite.Sprite):
         if (self.speedy>MAX_SPEED): self.speedy = MAX_SPEED
         if (self.speedx<(-1.0*MAX_SPEED)): self.speedx = -1.0*MAX_SPEED
         if (self.speedy<(-1.0*MAX_SPEED)): self.speedy = -1.0*MAX_SPEED
-                
+
     def update(self):
 #        self.speedx = 0
 #        self.speedy = 0
@@ -192,7 +192,7 @@ class Player(pygame.sprite.Sprite):
         Dx = pow((self.rect.centerx - CENTER[0])/ASPECT, 2)
         Dy = pow(self.rect.centery - CENTER[1], 2)
         return pow(Dx + Dy, 0.5)
-    
+
     def shoot(self):
         thrust = AngleToCoords(self.rot, -2.0)
 #        bullet = Bullet(self.rect.centerx, self.rect.centery, self.speedx+thrust[0], self.speedy+thrust[1])
@@ -202,7 +202,7 @@ class Player(pygame.sprite.Sprite):
         all_sprites.add(bullet)
         if self.playernum==1: bullets1.add(bullet)
         elif self.playernum==2: bullets2.add(bullet)
-    
+
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y, speedx, speedy, color):
         pygame.sprite.Sprite.__init__(self)
@@ -228,11 +228,11 @@ class Bullet(pygame.sprite.Sprite):
         self.locy += self.speedy
         self.rect.centerx = self.locx
         self.rect.centery = self.locy
-        
+
     def GetBoundary(self):
         Dx = pow((self.rect.centerx - CENTER[0])/ASPECT, 2)
         Dy = pow(self.rect.centery - CENTER[1], 2)
-        return pow(Dx + Dy, 0.5)    
+        return pow(Dx + Dy, 0.5)
 
     def GetDistance(self):
         Dx = pow(self.rect.centerx - CENTER[0], 2)
@@ -256,23 +256,45 @@ class HUD():
         Bar_1 = float(time.time() - LastBulletTime1)/BULLET_COOLDOWN
         if Bar_1>1.0: Bar_1 = 1.0
         elif Bar_1<0.01: Bar_1 = 0.01
-        self.CBar_1.image = pygame.transform.scale(self.CBar_1.image, (self.barw,int(self.barh*Bar_1))) 
+        self.CBar_1.image = pygame.transform.scale(self.CBar_1.image, (self.barw,int(self.barh*Bar_1)))
         self.CBar_1.rect = self.CBar_1.image.get_rect()
         self.CBar_1.rect.left = WIDTH*0.02
         self.CBar_1.rect.bottom = HEIGHT*0.95
+
+class Star(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface((STAR_SIZE*2,STAR_SIZE*2))
+        pygame.draw.circle(self.image, MONO_COLOR, (STAR_SIZE,STAR_SIZE), STAR_SIZE, 3)
+#        self.image.fill(color)
+        self.rect = self.image.get_rect()
+        self.locx = CENTER[0]
+        self.locy = CENTER[1]
+        self.rect.centerx = self.locx
+        self.rect.centery = self.locy
+#        print(self.rect.centerx, self.rect.centery)
+
+    def update(self):
+        self.image.fill((0,0,0))
+        if pygame.time.get_ticks()%2 == 0:
+          pygame.draw.circle(self.image, MONO_COLOR, (STAR_SIZE,STAR_SIZE), random.random()*STAR_SIZE, 1)
+#
 
 
 all_sprites = pygame.sprite.Group()
 bullets1 = pygame.sprite.Group()
 bullets2 = pygame.sprite.Group()
+star = Star()
+all_sprites.add(star)
+
 fade_fill = pygame.Surface((WIDTH, HEIGHT))
 fade_fill.set_alpha(FADE_PARAM)
 pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
 LastBulletTime1 = time.time() - BULLET_COOLDOWN
 LastBulletTime2 = time.time() - BULLET_COOLDOWN
 
-star = pygame.Surface((STAR_SIZE*2,STAR_SIZE*2))
-pygame.draw.circle(star, MONO_COLOR, (STAR_SIZE,STAR_SIZE), STAR_SIZE)
+#star = pygame.Surface((STAR_SIZE*2,STAR_SIZE*2))
+#pygame.draw.circle(star, MONO_COLOR, (STAR_SIZE,STAR_SIZE), STAR_SIZE)
 
 ships = []
 #for i in range(0,SHIP_NUM):
@@ -297,11 +319,11 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE:
+            if event.key == pygame.K_RSHIFT:
                 if (time.time() > (LastBulletTime1 + BULLET_COOLDOWN)):
                     player1.shoot()
                     LastBulletTime1 = time.time()
-            if event.key == pygame.K_j:
+            if event.key == pygame.K_f:
                 if (time.time() > (LastBulletTime2 + BULLET_COOLDOWN)):
                     player2.shoot()
                     LastBulletTime2 = time.time()
@@ -317,13 +339,14 @@ while running:
         all_sprites.add(player2)
 
     # Update
+
     HUD.update()
     all_sprites.update()
 
     # Draw / render
     if (FADE): screen.blit(fade_fill, (0,0))
     else: screen.fill(BLACK)
-    screen.blit(star, (CENTER[0]-STAR_SIZE, CENTER[1]-STAR_SIZE))
+#    screen.blit(star, (CENTER[0]-STAR_SIZE, CENTER[1]-STAR_SIZE))
     all_sprites.draw(screen)
     # *after* drawing everything, flip the display
     pygame.display.flip()
