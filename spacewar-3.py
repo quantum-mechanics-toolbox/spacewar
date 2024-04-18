@@ -9,7 +9,7 @@ import time
 WIDTH = 1240
 HEIGHT = 640
 ASPECT = float(WIDTH)/HEIGHT
-RADIUS = 360
+RADIUS = 300
 FPS = 60
 CENTER = (WIDTH/2, HEIGHT/2)
 G = 80.0
@@ -17,23 +17,12 @@ BULLET_G = G/1.0
 SHIP_NUM = 20
 SHIP_SIZE = 1
 STAR_SIZE = 50
-BG_STARS = 60
 START_SPEED = 1.0
 MAX_SPEED = 20.0
 FADE = True
-FADE_PARAM = 8
+FADE_PARAM = 32
 BULLET_COOLDOWN = 1
 NUM_HYPERS = 3
-
-FRAGMENTS = 20
-FRAG_DECAY = 300
-PLAYER1_DEAD = 0
-PLAYER2_DEAD = 0
-SCORE = (0,0)
-
-
-TAU = math.tau
-
 
 # define colors
 WHITE = (255, 255, 255)
@@ -103,13 +92,12 @@ class Player(pygame.sprite.Sprite):
         self.StartPos()
 
     def StartPos(self):
-# Right Left Start Positions
-#        if self.playernum ==1:
-#            self.locx = (WIDTH/4) - (random.randrange(RADIUS) - (RADIUS/2))
-#        if self.playernum ==2:
-#            self.locx = (WIDTH*3/4)- (random.randrange(RADIUS) - (RADIUS/2))
-#        self.locy = (HEIGHT/2) - (random.randrange(RADIUS) - (RADIUS/2))
-        self.NewPos()
+        if self.playernum ==1:
+            self.locx = (WIDTH/4) - (random.randrange(RADIUS) - (RADIUS/2))
+        if self.playernum ==2:
+            self.locx = (WIDTH*3/4)- (random.randrange(RADIUS) - (RADIUS/2))
+        self.locy = (HEIGHT/2) - (random.randrange(RADIUS) - (RADIUS/2))
+#        self.NewPos()
 
     def DrawType(self, ShipType):
         if ShipType==1:
@@ -128,13 +116,13 @@ class Player(pygame.sprite.Sprite):
 
     def NewPos(self):
 #        self.locx = (WIDTH/2) - (random.randrange(RADIUS) - (RADIUS/2))
+        self.locx = CENTER[0] + (RandSign()*(random.randrange((2*STAR_SIZE), RADIUS)))
 #        self.locy = (HEIGHT/2) - (random.randrange(RADIUS) - (RADIUS/2))
-        angle = random.random()*360
-        distance = random.randrange(2*STAR_SIZE, 0.9*RADIUS)
-        self.locx = CENTER[0] + AngleToCoords(angle, distance)[0]
-        self.locy = CENTER[1] + AngleToCoords(angle, distance)[1]
+        self.locy = CENTER[1] + (RandSign()*(random.randrange((2*STAR_SIZE), RADIUS)))
+#        print (self.locx, self.locy)
         self.rect.centerx = self.locx
         self.rect.centery = self.locy
+        print(self.locx, self.locy)
 
     def NewSpeed(self):
         self.speedx = START_SPEED*(random.randrange(-100,100)/100.0)
@@ -153,10 +141,8 @@ class Player(pygame.sprite.Sprite):
 #        self.speedx = 0
 #        self.speedy = 0
         if self.GetBoundary() > RADIUS:
-#            self.locx = WIDTH - self.locx + (4.0*self.speedx)
-#            self.locy = HEIGHT - self.locy + (4.0*self.speedy)
-            self.locx = WIDTH - self.locx
-            self.locy = HEIGHT - self.locy
+            self.locx = WIDTH - self.locx + (4.0*self.speedx)
+            self.locy = HEIGHT - self.locy + (4.0*self.speedy)
             self.rect.centerx = self.locx
             self.rect.centery = self.locy
         keystate = pygame.key.get_pressed()
@@ -170,12 +156,10 @@ class Player(pygame.sprite.Sprite):
                 self.speedx += thrust[1]
                 self.speedy += thrust[0]
             if keystate[pygame.K_DOWN]:
-                self.Explode()
-                self.kill()
-                #if self.hyperspace>0:
-                #    self.hyperspace -=1
-                #    self.NewPos()
-                #    self.NewSpeed()
+                if self.hyperspace>0:
+                    self.hyperspace -=1
+                    self.NewPos()
+                    self.NewSpeed()
         if self.playernum == 2:
             if keystate[pygame.K_a]:
                 self.rot += 2
@@ -193,9 +177,9 @@ class Player(pygame.sprite.Sprite):
 #        if (self.GetDistance()==0):
 #            self.NewPos()
 #            self.NewSpeed()
-#        if (self.GetDistance()<STAR_SIZE):
-#            self.NewPos()
-#            self.NewSpeed()
+        if (self.GetDistance()<STAR_SIZE):
+            self.NewPos()
+            self.NewSpeed()
 #            self.kill()
         self.speedx -= G*(self.rect.centerx - CENTER[0])/pow(self.GetDistance(), 3)
         self.speedy -= G*(self.rect.centery - CENTER[1])/pow(self.GetDistance(), 3)
@@ -212,11 +196,7 @@ class Player(pygame.sprite.Sprite):
         return pow(Dx + Dy, 0.5)
 
     def GetBoundary(self):
-# Frame boundary
-#        Dx = pow((self.rect.centerx - CENTER[0])/ASPECT, 2)
-#        Dy = pow(self.rect.centery - CENTER[1], 2)
-# Radius Boundary
-        Dx = pow(self.rect.centerx - CENTER[0], 2)
+        Dx = pow((self.rect.centerx - CENTER[0])/ASPECT, 2)
         Dy = pow(self.rect.centery - CENTER[1], 2)
         return pow(Dx + Dy, 0.5)
 
@@ -230,23 +210,8 @@ class Player(pygame.sprite.Sprite):
         if self.playernum==1: bullets1.add(bullet)
         elif self.playernum==2: bullets2.add(bullet)
 
-    def Explode(self):
-        for frag in range(1, FRAGMENTS):
-            thrust = AngleToCoords(random.randrange(1,360), random.randrange(1,5))
-    #        bullet = Bullet(self.rect.centerx, self.rect.centery, self.speedx+thrust[0], self.speedy+thrust[1])
-    #        bullet = Bullet(self.rect.centerx, self.rect.centery, self.speedx+thrust[1], self.speedy+thrust[0])
-    #        bullet = Bullet(self.rect.centerx, self.rect.centery, thrust[1], thrust[0], self.color)
-#"""static location"""
-#            bullet = Bullet(self.rect.centerx, self.rect.centery, thrust[0], thrust[1], self.color, random.randrange(FRAG_DECAY/2,FRAG_DECAY))
-#"""ship velocity location"""
-            bullet = Bullet(self.rect.centerx, self.rect.centery, thrust[0]+self.speedx, thrust[1]+self.speedy, self.color, random.randrange(FRAG_DECAY/2,FRAG_DECAY))
-            all_sprites.add(bullet)
-            if self.playernum==1: bullets1.add(bullet)
-            elif self.playernum==2: bullets2.add(bullet)
-
-
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, x, y, speedx, speedy, color, lifespan=-1):
+    def __init__(self, x, y, speedx, speedy, color):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.Surface((2, 2))
         self.image.fill(color)
@@ -255,7 +220,6 @@ class Bullet(pygame.sprite.Sprite):
         self.locy = y
         self.speedx = speedx
         self.speedy = speedy
-        self.lifespan = lifespan
         self.rect.centerx = self.locx
         self.rect.centery = self.locy
 #        print(self.rect.centerx, self.rect.centery)
@@ -263,10 +227,6 @@ class Bullet(pygame.sprite.Sprite):
     def update(self):
         if self.GetBoundary() > RADIUS:
             self.kill()
-        if self.lifespan > -1:
-            self.lifespan -= 1
-            if self.lifespan == 0:
-                self.kill()
 #        if (self.GetDistance()==0):
 #            self.kill()
         self.speedx -= BULLET_G*(self.rect.centerx - CENTER[0])/pow(self.GetDistance(), 3)
@@ -277,11 +237,7 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.centery = self.locy
 
     def GetBoundary(self):
-# Frame boundary
-#        Dx = pow((self.rect.centerx - CENTER[0])/ASPECT, 2)
-#        Dy = pow(self.rect.centery - CENTER[1], 2)
-# Radius boundary
-        Dx = pow(self.rect.centerx - CENTER[0], 2)
+        Dx = pow((self.rect.centerx - CENTER[0])/ASPECT, 2)
         Dy = pow(self.rect.centery - CENTER[1], 2)
         return pow(Dx + Dy, 0.5)
 
@@ -292,7 +248,6 @@ class Bullet(pygame.sprite.Sprite):
 
 class HUD():
     def __init__(self):
-
         self.barw = int(WIDTH*0.02)
         self.barh = int(HEIGHT*0.16)
         self.CBar_1 = pygame.sprite.Sprite()
@@ -301,7 +256,6 @@ class HUD():
         self.CBar_1.rect = self.CBar_1.image.get_rect()
         self.CBar_1.rect.left = WIDTH*0.02
         self.CBar_1.rect.bottom = HEIGHT*0.95
-
         self.HUD_sprites = pygame.sprite.Group()
         self.HUD_sprites.add(self.CBar_1)
 
@@ -314,25 +268,11 @@ class HUD():
         self.CBar_1.rect.left = WIDTH*0.02
         self.CBar_1.rect.bottom = HEIGHT*0.95
 
-def Overlay():
-    overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-    pygame.draw.rect(overlay, (0,0,0,255), overlay.get_rect())
-    pygame.draw.circle(overlay, (0,0,0,0), CENTER, RADIUS)
-    pygame.draw.circle(overlay, MONO_COLOR, CENTER, RADIUS, 1)
-    for star in range(BG_STARS):
-        size = random.randrange(1,3)
-        angle = random.random()*360
-        distance = random.randrange(STAR_SIZE, 0.9*RADIUS)
-        position = (CENTER[0] + AngleToCoords(angle, distance)[0], CENTER[1] + AngleToCoords(angle, distance)[1])
-        pygame.draw.circle(overlay, MONO_COLOR, position, size)
-    return overlay
-
-
 class Star(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.Surface((STAR_SIZE*2,STAR_SIZE*2), pygame.SRCALPHA)
-#        pygame.draw.circle(self.image, MONO_COLOR, (STAR_SIZE,STAR_SIZE), STAR_SIZE, 3)
+        self.image = pygame.Surface((STAR_SIZE*2,STAR_SIZE*2))
+        pygame.draw.circle(self.image, MONO_COLOR, (STAR_SIZE,STAR_SIZE), STAR_SIZE, 3)
 #        self.image.fill(color)
         self.rect = self.image.get_rect()
         self.locx = CENTER[0]
@@ -342,8 +282,7 @@ class Star(pygame.sprite.Sprite):
 #        print(self.rect.centerx, self.rect.centery)
 
     def update(self):
-#        self.image.fill((0,0,0))
-        pygame.draw.circle(self.image, (0,0,0,1), (STAR_SIZE,STAR_SIZE), STAR_SIZE)
+        self.image.fill((0,0,0))
         if pygame.time.get_ticks()%2 == 0:
           pygame.draw.circle(self.image, MONO_COLOR, (STAR_SIZE,STAR_SIZE), random.random()*STAR_SIZE, 1)
 #
@@ -352,29 +291,14 @@ class Star(pygame.sprite.Sprite):
 all_sprites = pygame.sprite.Group()
 bullets1 = pygame.sprite.Group()
 bullets2 = pygame.sprite.Group()
-
-HUD = HUD()
-all_sprites.add(HUD.HUD_sprites)
-
 star = Star()
 all_sprites.add(star)
-star_boundary = pygame.sprite.Group()
-star_boundary.add(star)
 
 fade_fill = pygame.Surface((WIDTH, HEIGHT))
 fade_fill.set_alpha(FADE_PARAM)
 pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
-
-overlay = Overlay()
-
-#    background = pygame.sprite.Sprite()
-#        self.background.image = pygame.Surface((WIDTH, HEIGHT))
-#        self.background.image.fill((255,0,0,0))
-
-#        pygame.draw.circle(self.background.image, MONO_COLOR, CENTER, RADIUS, 1)
-#        self.background.rect = self.background.image.get_rect()
-
-
+overlay = pygame.Surface((WIDTH, HEIGHT))
+pygame.draw.circle(overlay, MONO_COLOR, CENTER, RADIUS, 3)
 LastBulletTime1 = time.time() - BULLET_COOLDOWN
 LastBulletTime2 = time.time() - BULLET_COOLDOWN
 
@@ -389,6 +313,9 @@ player1 = Player(1, 2)
 player2 = Player(2, 3)
 all_sprites.add(player1)
 all_sprites.add(player2)
+HUD = HUD()
+
+all_sprites.add(HUD.HUD_sprites)
 
 # Game loop
 running = True
@@ -410,23 +337,13 @@ while running:
                     player2.shoot()
                     LastBulletTime2 = time.time()
     if (pygame.sprite.spritecollide(player1, bullets2, True)):
-        player1.Explode()
         player1.kill()
-#        time.sleep(1)
+        time.sleep(1)
         player1 = Player(1, 2)
         all_sprites.add(player1)
-    if (pygame.sprite.spritecollide(player1, star_boundary, False)):
-        player1.Explode()
-        player1.kill()
-#        time.sleep(1)
-        player1 = Player(1, 2)
-        all_sprites.add(player1)
- #       star_boundary.add(star)
-#        all_sprites.add(star)
     if (pygame.sprite.spritecollide(player2, bullets1, True)):
-        player2.Explode()
         player2.kill()
-#        time.sleep(1)
+        time.sleep(1)
         player2 = Player(2, 3)
         all_sprites.add(player2)
 
@@ -434,8 +351,6 @@ while running:
 
     HUD.update()
     all_sprites.update()
-
-
 
     # Draw / render
     if (FADE): screen.blit(fade_fill, (0,0))
