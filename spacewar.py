@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import pygame
+import pygame.freetype
+from operator import add, sub
 import random
 import math
 import os
@@ -26,16 +28,12 @@ BULLET_COOLDOWN = 1
 NUM_HYPERS = 3
 
 FRAGMENTS = 50
-FRAG_DECAY = 50
+FRAG_DECAY = 50000
 
-
-PLAYER1_DEAD = 0
-PLAYER2_DEAD = 0
 SCORE = [0,0]
-
-
-TAU = math.tau
-
+SCORE1_POS = (WIDTH/8, HEIGHT/6)
+SCORE2_POS = (WIDTH*7/8, HEIGHT/6)
+SCORE_SIZE = 40
 
 # define colors
 WHITE = (255, 255, 255)
@@ -55,9 +53,15 @@ random.seed()
 os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (20,20)
 pygame.init()
 pygame.mixer.init()
+#pygame.freetype.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Spacewar!")
 clock = pygame.time.Clock()
+print(pygame.freetype.get_default_font())
+font = pygame.freetype.Font("./fonts/OSCILLOS.TTF")
+font.fgcolor = MONO_COLOR
+
+#%% Generic Functions
 
 def ran(number):
     return random.randrange(number)
@@ -65,6 +69,8 @@ def ran(number):
 def RandSign():
     return 1 if random.random() < 0.5 else -1
 
+def SubCoords(a, b):
+    return ((a[0]-b[0]),(a[1]-b[1]))
 
 def AngleToCoords(theta, mag):
     theta = 6.2832*theta/360.0
@@ -82,6 +88,7 @@ def SetColor():
 #    b_chan = (b_chan/2) + 128
 #    print (r_chan, g_chan, b_chan)
     return (r_chan, g_chan, b_chan)
+#%%
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, playernum, shiptype):
@@ -252,8 +259,6 @@ class Player(pygame.sprite.Sprite):
         self.NewSpeed()
         self.kill()
 
-
-
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y, speedx, speedy, color, lifespan=-1):
         pygame.sprite.Sprite.__init__(self)
@@ -276,10 +281,10 @@ class Bullet(pygame.sprite.Sprite):
             self.lifespan -= 1
             if self.lifespan == 0:
                 self.kill()
-                print(SCORE, len(all_sprites))
+#                print(SCORE, len(all_sprites))
         if (self.GetDistance() < STAR_SIZE):
             self.kill()
-            print(SCORE, len(all_sprites))
+#            print(SCORE, len(all_sprites))
         self.speedx -= BULLET_G*(self.rect.centerx - CENTER[0])/pow(self.GetDistance(), 3)
         self.speedy -= BULLET_G*(self.rect.centery - CENTER[1])/pow(self.GetDistance(), 3)
         self.locx += self.speedx
@@ -341,7 +346,6 @@ def Overlay():
         pygame.draw.circle(overlay, MONO_COLOR, position, size)
     return overlay
 
-
 class Star(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
@@ -360,7 +364,7 @@ class Star(pygame.sprite.Sprite):
         pygame.draw.circle(self.image, (0,0,0,1), (STAR_SIZE,STAR_SIZE), STAR_SIZE)
         if pygame.time.get_ticks()%2 == 0:
           pygame.draw.circle(self.image, MONO_COLOR, (STAR_SIZE,STAR_SIZE), random.random()*STAR_SIZE, 1)
-#
+
 
 
 spawn_player1_event = pygame.USEREVENT + 1
@@ -408,6 +412,8 @@ player1 = Player(1, 2)
 player2 = Player(2, 3)
 #all_sprites.add(player1)
 #all_sprites.add(player2)
+
+
 
 # Game loop
 running = True
@@ -487,6 +493,14 @@ while running:
 #    screen.blit(star, (CENTER[0]-STAR_SIZE, CENTER[1]-STAR_SIZE))
     screen.blit(overlay, (0,0))
     all_sprites.draw(screen)
+#    screen.blit(score_player1, (-score_player1_rect[0]/2,-score_player1_rect[1]/2))
+    font.size = SCORE_SIZE
+    score_player1, score_player1_rect = font.render(str(SCORE[0]))
+    score_player2, score_player2_rect = font.render(str(SCORE[1]))
+    screen.blit(score_player1, SubCoords(SCORE1_POS, score_player1_rect.center))
+    screen.blit(score_player2, SubCoords(SCORE2_POS, score_player2_rect.center))
+
+#    screen.blit(score_player2, SCORE2_POS - score_player2_rect.center)
     # *after* drawing everything, flip the display
     pygame.display.flip()
 
