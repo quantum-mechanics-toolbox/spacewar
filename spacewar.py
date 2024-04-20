@@ -25,11 +25,13 @@ FADE_PARAM = 8
 BULLET_COOLDOWN = 1
 NUM_HYPERS = 3
 
-FRAGMENTS = 20
-FRAG_DECAY = 300
+FRAGMENTS = 50
+FRAG_DECAY = 50
+
+
 PLAYER1_DEAD = 0
 PLAYER2_DEAD = 0
-SCORE = (0,0)
+SCORE = [0,0]
 
 
 TAU = math.tau
@@ -170,12 +172,12 @@ class Player(pygame.sprite.Sprite):
                 self.speedx += thrust[1]
                 self.speedy += thrust[0]
             if keystate[pygame.K_DOWN]:
-                self.Explode()
-                self.kill()
-                #if self.hyperspace>0:
-                #    self.hyperspace -=1
-                #    self.NewPos()
-                #    self.NewSpeed()
+                #self.Explode()
+                #self.kill()
+                if self.hyperspace>0:
+                    self.hyperspace -=1
+                    self.NewPos()
+                    self.NewSpeed()
         if self.playernum == 2:
             if keystate[pygame.K_a]:
                 self.rot += 2
@@ -209,7 +211,10 @@ class Player(pygame.sprite.Sprite):
     def GetDistance(self):
         Dx = pow(self.rect.centerx - CENTER[0], 2)
         Dy = pow(self.rect.centery - CENTER[1], 2)
-        return pow(Dx + Dy, 0.5)
+        distance = pow(Dx + Dy, 0.5)
+        if distance == 0:
+            distance = 1
+        return distance
 
     def GetBoundary(self):
 # Frame boundary
@@ -243,6 +248,10 @@ class Player(pygame.sprite.Sprite):
             all_sprites.add(bullet)
             if self.playernum==1: bullets1.add(bullet)
             elif self.playernum==2: bullets2.add(bullet)
+        self.NewPos()
+        self.NewSpeed()
+        self.kill()
+
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -267,8 +276,10 @@ class Bullet(pygame.sprite.Sprite):
             self.lifespan -= 1
             if self.lifespan == 0:
                 self.kill()
-#        if (self.GetDistance()==0):
-#            self.kill()
+                print(SCORE, len(all_sprites))
+        if (self.GetDistance() < STAR_SIZE):
+            self.kill()
+            print(SCORE, len(all_sprites))
         self.speedx -= BULLET_G*(self.rect.centerx - CENTER[0])/pow(self.GetDistance(), 3)
         self.speedy -= BULLET_G*(self.rect.centery - CENTER[1])/pow(self.GetDistance(), 3)
         self.locx += self.speedx
@@ -288,7 +299,10 @@ class Bullet(pygame.sprite.Sprite):
     def GetDistance(self):
         Dx = pow(self.rect.centerx - CENTER[0], 2)
         Dy = pow(self.rect.centery - CENTER[1], 2)
-        return pow(Dx + Dy, 0.5)
+        distance = pow(Dx + Dy, 0.5)
+        if distance == 0:
+            distance = 1
+        return distance
 
 class HUD():
     def __init__(self):
@@ -349,6 +363,11 @@ class Star(pygame.sprite.Sprite):
 #
 
 
+spawn_player1_event = pygame.USEREVENT + 1
+spawn_player2_event = pygame.USEREVENT + 2
+pygame.time.set_timer(spawn_player1_event, 10, 1)
+pygame.time.set_timer(spawn_player2_event, 10, 1)
+
 all_sprites = pygame.sprite.Group()
 bullets1 = pygame.sprite.Group()
 bullets2 = pygame.sprite.Group()
@@ -387,8 +406,8 @@ ships = []
 #all_sprites.add(ships)
 player1 = Player(1, 2)
 player2 = Player(2, 3)
-all_sprites.add(player1)
-all_sprites.add(player2)
+#all_sprites.add(player1)
+#all_sprites.add(player2)
 
 # Game loop
 running = True
@@ -400,6 +419,11 @@ while running:
         # check for closing window
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == spawn_player1_event:
+            all_sprites.add(player1)
+#            pygame.event.clear(spawn_player1_event)
+        elif event.type == spawn_player2_event:
+            all_sprites.add(player2)
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_RSHIFT:
                 if (time.time() > (LastBulletTime1 + BULLET_COOLDOWN)):
@@ -409,26 +433,46 @@ while running:
                 if (time.time() > (LastBulletTime2 + BULLET_COOLDOWN)):
                     player2.shoot()
                     LastBulletTime2 = time.time()
-    if (pygame.sprite.spritecollide(player1, bullets2, True)):
-        player1.Explode()
-        player1.kill()
-#        time.sleep(1)
-        player1 = Player(1, 2)
-        all_sprites.add(player1)
-    if (pygame.sprite.spritecollide(player1, star_boundary, False)):
-        player1.Explode()
-        player1.kill()
-#        time.sleep(1)
-        player1 = Player(1, 2)
-        all_sprites.add(player1)
- #       star_boundary.add(star)
-#        all_sprites.add(star)
-    if (pygame.sprite.spritecollide(player2, bullets1, True)):
-        player2.Explode()
-        player2.kill()
-#        time.sleep(1)
-        player2 = Player(2, 3)
-        all_sprites.add(player2)
+    if player1.alive():
+        if (pygame.sprite.spritecollide(player1, bullets2, True)):
+            player1.Explode()
+            SCORE[1] += 1
+            print(SCORE, len(all_sprites))
+            pygame.time.set_timer(spawn_player1_event, 500, 1)
+#            player1.kill()
+    #        time.sleep(1)
+    #        player1 = Player(1, 2)
+    #        all_sprites.add(player1)
+        if (pygame.sprite.spritecollide(player1, star_boundary, False)):
+            player1.Explode()
+            if SCORE[0] > 0:
+                SCORE[0] -= 1
+            print(SCORE, len(all_sprites))
+            pygame.time.set_timer(spawn_player1_event, 500, 1)
+#            player1.kill()
+    #        time.sleep(1)
+    #        player1 = Player(1, 2)
+    #        all_sprites.add(player1)
+    if player2.alive():
+        if (pygame.sprite.spritecollide(player2, bullets1, True)):
+            player2.Explode()
+            SCORE[0] += 1
+            print(SCORE, len(all_sprites))
+            pygame.time.set_timer(spawn_player2_event, 500, 1)
+    #        player2.kill()
+    #        time.sleep(1)
+    #        player2 = Player(2, 3)
+    #        all_sprites.add(player2)
+        if (pygame.sprite.spritecollide(player2, star_boundary, False)):
+            player2.Explode()
+            if SCORE[1] > 0:
+                SCORE[1] -= 1
+            print(SCORE, len(all_sprites))
+            pygame.time.set_timer(spawn_player2_event, 500, 1)
+    #        player2.kill()
+    #        time.sleep(1)
+    #        player2 = Player(2, 3)
+    #        all_sprites.add(player2)
 
     # Update
 
