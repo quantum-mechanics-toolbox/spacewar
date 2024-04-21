@@ -365,7 +365,11 @@ class Star(pygame.sprite.Sprite):
         if pygame.time.get_ticks()%2 == 0:
           pygame.draw.circle(self.image, MONO_COLOR, (STAR_SIZE,STAR_SIZE), random.random()*STAR_SIZE, 1)
 
-
+def ColorTint(source, tint):
+  r = (tint[0]/255)*source[0]
+  g = (tint[1]/255)*source[1]
+  b = (tint[2]/255)*source[2]
+  return (r,g,b,source[3])
 
 spawn_player1_event = pygame.USEREVENT + 1
 spawn_player2_event = pygame.USEREVENT + 2
@@ -375,6 +379,14 @@ pygame.time.set_timer(spawn_player2_event, 10, 1)
 all_sprites = pygame.sprite.Group()
 bullets1 = pygame.sprite.Group()
 bullets2 = pygame.sprite.Group()
+
+lamp_surf = pygame.image.load("./gfx/lamp.png")
+lamp_surf = lamp_surf.convert_alpha()
+for x in range(0, lamp_surf.get_width()):
+  for y in range(0, lamp_surf.get_height()):
+#    print(lamp_surf.get_at((x,y)))
+    lamp_surf.set_at((x,y), ColorTint(lamp_surf.get_at((x,y)), MONO_COLOR))
+
 
 HUD = HUD()
 all_sprites.add(HUD.HUD_sprites)
@@ -499,7 +511,7 @@ while running:
     score_player2, score_player2_rect = font.render(str(SCORE[1]))
     screen.blit(score_player1, SubCoords(SCORE1_POS, score_player1_rect.center))
     screen.blit(score_player2, SubCoords(SCORE2_POS, score_player2_rect.center))
-
+    screen.blit(lamp_surf, (0,0))
 #    screen.blit(score_player2, SCORE2_POS - score_player2_rect.center)
     # *after* drawing everything, flip the display
     pygame.display.flip()
