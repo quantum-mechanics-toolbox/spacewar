@@ -25,7 +25,7 @@ MAX_SPEED = 20.0
 FADE = True
 FADE_PARAM = 8
 BULLET_COOLDOWN = 1
-HYPER_COOLDOWN = 10
+NUM_HYPERS = 3
 
 FRAGMENTS = 50
 FRAG_DECAY = 50
@@ -67,8 +67,7 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Spacewar!")
 clock = pygame.time.Clock()
 print(pygame.freetype.get_default_font())
-#font = pygame.freetype.Font("./fonts/OSCILLOS.TTF")
-font = pygame.freetype.Font("./fonts/Oscilloscope5.ttf")
+font = pygame.freetype.Font("./fonts/OSCILLOS.TTF")
 font.fgcolor = MONO_COLOR
 
 #%% Generic Functions
@@ -134,7 +133,7 @@ class Player(pygame.sprite.Sprite):
         self.locx = 0.0
         self.locy = 0.0
         self.rot = 0.0
-#        self.hyperspace = NUM_HYPERS
+        self.hyperspace = NUM_HYPERS
         self.NewSpeed()
         self.StartPos()
 
@@ -186,8 +185,6 @@ class Player(pygame.sprite.Sprite):
         if (self.speedy<(-1.0*MAX_SPEED)): self.speedy = -1.0*MAX_SPEED
 
     def update(self):
-        global LastHyperTime1
-        global LastHyperTime2
 #        self.speedx = 0
 #        self.speedy = 0
         if self.GetBoundary() > RADIUS:
@@ -210,15 +207,10 @@ class Player(pygame.sprite.Sprite):
             if keystate[pygame.K_DOWN]:
                 #self.Explode()
                 #self.kill()
-                if (time.time() > (LastHyperTime1 + HYPER_COOLDOWN)):
+                if self.hyperspace>0:
+                    self.hyperspace -=1
                     self.NewPos()
                     self.NewSpeed()
-                    LastHyperTime1 = time.time()
-
-                # if self.hyperspace>0:
-                #     self.hyperspace -=1
-                #     self.NewPos()
-                #     self.NewSpeed()
         if self.playernum == 2:
             if keystate[pygame.K_a]:
                 self.rot += 2
@@ -229,12 +221,11 @@ class Player(pygame.sprite.Sprite):
                 self.speedx += thrust[1]
                 self.speedy += thrust[0]
             if keystate[pygame.K_s]:
-                if (time.time() > (LastHyperTime2 + HYPER_COOLDOWN)):
+                if self.hyperspace>0:
+                    self.hyperspace -=1
                     self.NewPos()
                     self.NewSpeed()
-                    LastHyperTime2 = time.time()
-
-                #        if (self.GetDistance()==0):
+#        if (self.GetDistance()==0):
 #            self.NewPos()
 #            self.NewSpeed()
 #        if (self.GetDistance()<STAR_SIZE):
@@ -363,6 +354,31 @@ class Star(pygame.sprite.Sprite):
         if pygame.time.get_ticks()%2 == 0:
           pygame.draw.circle(self.image, MONO_COLOR, (STAR_SIZE,STAR_SIZE), random.random()*STAR_SIZE, 1)
 
+
+# class HUD():
+#     def __init__(self):
+
+#         self.barw = int(WIDTH*0.02)
+#         self.barh = int(HEIGHT*0.16)
+#         self.CBar_1 = pygame.sprite.Sprite()
+#         self.CBar_1.image = pygame.Surface((self.barw, self.barh))
+#         self.CBar_1.image.fill(COLOR1)
+#         self.CBar_1.rect = self.CBar_1.image.get_rect()
+#         self.CBar_1.rect.left = WIDTH*0.02
+#         self.CBar_1.rect.bottom = HEIGHT*0.95
+
+#         self.HUD_sprites = pygame.sprite.Group()
+#         self.HUD_sprites.add(self.CBar_1)
+
+#     def update(self):
+#         Bar_1 = float(time.time() - LastBulletTime1)/BULLET_COOLDOWN
+#         if Bar_1>1.0: Bar_1 = 1.0
+#         elif Bar_1<0.01: Bar_1 = 0.01
+#         self.CBar_1.image = pygame.transform.scale(self.CBar_1.image, (self.barw,int(self.barh*Bar_1)))
+#         self.CBar_1.rect = self.CBar_1.image.get_rect()
+#         self.CBar_1.rect.left = WIDTH*0.02
+#         self.CBar_1.rect.bottom = HEIGHT*0.95
+
 def Background():
     background = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     pygame.draw.rect(background, (0,0,0,255), background.get_rect())
@@ -381,39 +397,13 @@ def CreateElements():
 
     lamp_surf = pygame.image.load("./gfx/lamp.png")
     lamp_surf = lamp_surf.convert_alpha()
+    for x in range(0, lamp_surf.get_width()):
+      for y in range(0, lamp_surf.get_height()):
+    #    print(lamp_surf.get_at((x,y)))
+        lamp_surf.set_at((x,y), ColorTint(lamp_surf.get_at((x,y)), MONO_COLOR))
     lamp_surf = pygame.transform.scale(lamp_surf, (LAMP_SIZE, LAMP_SIZE))
 
-### Player 1 Lamp
-    lamp_surf_player1 = lamp_surf.copy()
-    for x in range(0, lamp_surf.get_width()):
-      for y in range(0, lamp_surf.get_height()):
-        lamp_surf_player1.set_at((x,y), ColorTint(lamp_surf.get_at((x,y)), COLOR1))
-### Player 2 Lamp
-    lamp_surf_player2 = lamp_surf.copy()
-    for x in range(0, lamp_surf.get_width()):
-      for y in range(0, lamp_surf.get_height()):
-        lamp_surf_player2.set_at((x,y), ColorTint(lamp_surf.get_at((x,y)), COLOR2))
-
-    levels = []
-    for i in range(20):
-      levels.append(int(20*i/19))
-    levels[18] = levels[17]
-#    print(levels)
-#    for surfs in range(20):
-#      print(((20.0-levels[surfs])/20.0))
-    lamp_surfs_player1 = []
-    lamp_surfs_player2 = []
-    for surfs in range(20):
-      sub_lamp_surf_player1 = lamp_surf_player1.copy()
-      sub_lamp_surf_player2 = lamp_surf_player2.copy()
-      for x in range(0, sub_lamp_surf_player1.get_width()):
-        for y in range(0, sub_lamp_surf_player1.get_height()):
-          sub_lamp_surf_player1.set_at((x,y), ColorSubtract(sub_lamp_surf_player1.get_at((x,y)), int(255*((20.0-levels[surfs])/20.0))))
-          sub_lamp_surf_player2.set_at((x,y), ColorSubtract(sub_lamp_surf_player2.get_at((x,y)), int(255*((20.0-levels[surfs])/20.0))))
-      lamp_surfs_player1.append(sub_lamp_surf_player1)
-      lamp_surfs_player2.append(sub_lamp_surf_player2)
-
-    return lamp_surfs_player1, lamp_surfs_player2, background
+    return lamp_surf, background
 
 def HUD():
     hud = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -421,23 +411,23 @@ def HUD():
 
     bullet_lamp_scale_1 = float(time.time() - LastBulletTime1)/BULLET_COOLDOWN
     if bullet_lamp_scale_1>1.0: bullet_lamp_scale_1 = 1.0
-    index = int(19*bullet_lamp_scale_1)
-    hud.blit(lamp_surfs_player1[index], SubCoords(UI3_POS, lamp_surfs_player1[index].get_rect().center))
+    elif bullet_lamp_scale_1<0.01: bullet_lamp_scale_1 = 0.01
 
-    bullet_lamp_scale_2 = float(time.time() - LastBulletTime2)/BULLET_COOLDOWN
-    if bullet_lamp_scale_2>1.0: bullet_lamp_scale_2 = 1.0
-    index = int(19*bullet_lamp_scale_2)
-    hud.blit(lamp_surfs_player2[index], SubCoords(UI6_POS, lamp_surfs_player2[index].get_rect().center))
+#     scaled_lamp_surf = pygame.transform.scale_by(lamp_surf, bullet_lamp_scale_1)
+# #    hud.blit(lamp_surf, (0,0))
+#     hud.blit(scaled_lamp_surf, SubCoords(UI1_POS, scaled_lamp_surf.get_rect().center))
 
-    hyper_lamp_scale_1 = float(time.time() - LastHyperTime1)/HYPER_COOLDOWN
-    if hyper_lamp_scale_1>1.0: hyper_lamp_scale_1 = 1.0
-    index = int(19*hyper_lamp_scale_1)
-    hud.blit(lamp_surfs_player1[index], SubCoords(UI2_POS, lamp_surfs_player1[index].get_rect().center))
+#    sub_lamp_surf = lamp_surf.copy()
+#    for x in range(0, sub_lamp_surf.get_width()):
+#      for y in range(0, sub_lamp_surf.get_height()):
+#    #    print(lamp_surf.get_at((x,y)))
+#        sub_lamp_surf.set_at((x,y), ColorSubtract(sub_lamp_surf.get_at((x,y)), int(255*(1.0-bullet_lamp_scale_1))))
+#    hud.blit(sub_lamp_surf, SubCoords(UI2_POS, sub_lamp_surf.get_rect().center))
 
-    hyper_lamp_scale_2 = float(time.time() - LastHyperTime2)/HYPER_COOLDOWN
-    if hyper_lamp_scale_2>1.0: hyper_lamp_scale_2 = 1.0
-    index = int(19*hyper_lamp_scale_2)
-    hud.blit(lamp_surfs_player2[index], SubCoords(UI5_POS, lamp_surfs_player2[index].get_rect().center))
+    # alpha_lamp_surf = lamp_surf.copy()
+    # alpha_lamp_surf.set_alpha(int(255*bullet_lamp_scale_1))
+    # hud.blit(alpha_lamp_surf, SubCoords(UI3_POS, alpha_lamp_surf.get_rect().center))
+
 
     font.size = SCORE_SIZE
     score_player1, score_player1_rect = font.render(str(SCORE[0]))
@@ -445,8 +435,8 @@ def HUD():
     fps_disp, fps_disp_rect = font.render(str(fps))
     hud.blit(score_player1, SubCoords(UI1_POS, score_player1_rect.center))
     hud.blit(score_player2, SubCoords(UI4_POS, score_player2_rect.center))
-    hud.blit(fps_disp, SubCoords((UI4_POS[0], UI4_POS[1]+60), fps_disp_rect.center))
-#    print(fps)
+    hud.blit(fps_disp, SubCoords(UI5_POS, fps_disp_rect.center))
+
 
     return hud
 
@@ -460,7 +450,12 @@ all_sprites = pygame.sprite.Group()
 bullets1 = pygame.sprite.Group()
 bullets2 = pygame.sprite.Group()
 
-lamp_surfs_player1, lamp_surfs_player2, background = CreateElements()
+
+
+#HUD = HUD()
+#all_sprites.add(HUD.HUD_sprites)
+
+lamp_surf, background = CreateElements()
 star = Star()
 all_sprites.add(star)
 star_boundary = pygame.sprite.Group()
@@ -470,15 +465,29 @@ fade_fill = pygame.Surface((WIDTH, HEIGHT))
 fade_fill.set_alpha(FADE_PARAM)
 pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
 
+
+#    background = pygame.sprite.Sprite()
+#        self.background.image = pygame.Surface((WIDTH, HEIGHT))
+#        self.background.image.fill((255,0,0,0))
+
+#        pygame.draw.circle(self.background.image, MONO_COLOR, CENTER, RADIUS, 1)
+#        self.background.rect = self.background.image.get_rect()
+
+
 LastBulletTime1 = time.time() - BULLET_COOLDOWN
 LastBulletTime2 = time.time() - BULLET_COOLDOWN
-LastHyperTime1 = time.time() - HYPER_COOLDOWN
-LastHyperTime2 = time.time() - HYPER_COOLDOWN
 
+#star = pygame.Surface((STAR_SIZE*2,STAR_SIZE*2))
+#pygame.draw.circle(star, MONO_COLOR, (STAR_SIZE,STAR_SIZE), STAR_SIZE)
 
 ships = []
+#for i in range(0,SHIP_NUM):
+#    ships.append(Player())
+#all_sprites.add(ships)
 player1 = Player(1, 2)
 player2 = Player(2, 3)
+#all_sprites.add(player1)
+#all_sprites.add(player2)
 
 
 
@@ -515,26 +524,43 @@ while running:
             SCORE[1] += 1
             print(SCORE, len(all_sprites))
             pygame.time.set_timer(spawn_player1_event, 500, 1)
+#            player1.kill()
+    #        time.sleep(1)
+    #        player1 = Player(1, 2)
+    #        all_sprites.add(player1)
         if (pygame.sprite.spritecollide(player1, star_boundary, False)):
             player1.Explode()
             if SCORE[0] > 0:
                 SCORE[0] -= 1
             print(SCORE, len(all_sprites))
             pygame.time.set_timer(spawn_player1_event, 500, 1)
+#            player1.kill()
+    #        time.sleep(1)
+    #        player1 = Player(1, 2)
+    #        all_sprites.add(player1)
     if player2.alive():
         if (pygame.sprite.spritecollide(player2, bullets1, True)):
             player2.Explode()
             SCORE[0] += 1
             print(SCORE, len(all_sprites))
             pygame.time.set_timer(spawn_player2_event, 500, 1)
+    #        player2.kill()
+    #        time.sleep(1)
+    #        player2 = Player(2, 3)
+    #        all_sprites.add(player2)
         if (pygame.sprite.spritecollide(player2, star_boundary, False)):
             player2.Explode()
             if SCORE[1] > 0:
                 SCORE[1] -= 1
             print(SCORE, len(all_sprites))
             pygame.time.set_timer(spawn_player2_event, 500, 1)
+    #        player2.kill()
+    #        time.sleep(1)
+    #        player2 = Player(2, 3)
+    #        all_sprites.add(player2)
 
     # Update
+
     all_sprites.update()
 
     # Draw / render
@@ -545,6 +571,13 @@ while running:
     hud = HUD()
     screen.blit(hud, (0,0))
 
+    # font.size = SCORE_SIZE
+    # score_player1, score_player1_rect = font.render(str(SCORE[0]))
+    # score_player2, score_player2_rect = font.render(str(SCORE[1]))
+    # screen.blit(score_player1, SubCoords(SCORE1_POS, score_player1_rect.center))
+    # screen.blit(score_player2, SubCoords(SCORE2_POS, score_player2_rect.center))
+#    screen.blit(lamp_surf, (0,0))
+#    screen.blit(score_player2, SCORE2_POS - score_player2_rect.center)
     # *after* drawing everything, flip the display
     pygame.display.flip()
 
