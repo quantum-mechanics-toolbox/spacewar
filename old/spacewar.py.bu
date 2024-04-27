@@ -28,7 +28,7 @@ BULLET_COOLDOWN = 1
 NUM_HYPERS = 3
 
 FRAGMENTS = 50
-FRAG_DECAY = 50
+FRAG_DECAY = 50000
 
 SCORE = [0,0]
 SCORE1_POS = (WIDTH/8, HEIGHT/6)
@@ -169,8 +169,6 @@ class Player(pygame.sprite.Sprite):
 #            self.locy = HEIGHT - self.locy + (4.0*self.speedy)
             self.locx = WIDTH - self.locx
             self.locy = HEIGHT - self.locy
-            self.locx += self.speedx
-            self.locy += self.speedy
             self.rect.centerx = self.locx
             self.rect.centery = self.locy
         keystate = pygame.key.get_pressed()
