@@ -8,10 +8,10 @@ import math
 import os
 import time
 
-WIDTH = 1240
-HEIGHT = 640
+WIDTH = 1280
+HEIGHT = 800
 ASPECT = float(WIDTH)/HEIGHT
-RADIUS = 360
+RADIUS = 420
 FPS = 60
 CENTER = (WIDTH/2, HEIGHT/2)
 G = 80.0
@@ -57,7 +57,10 @@ os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (20,20)
 pygame.init()
 pygame.mixer.init()
 #pygame.freetype.init()
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+display_flags = pygame.FULLSCREEN
+screen = pygame.display.set_mode((WIDTH, HEIGHT), display_flags)
+#screen = pygame.display.set_mode((0,0), display_flags)
+print (screen.get_size())
 pygame.display.set_caption("Spacewar!")
 clock = pygame.time.Clock()
 print(pygame.freetype.get_default_font())
@@ -436,6 +439,8 @@ while running:
         elif event.type == spawn_player2_event:
             all_sprites.add(player2)
         elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                pygame.quit()
             if event.key == pygame.K_RSHIFT:
                 if (time.time() > (LastBulletTime1 + BULLET_COOLDOWN)):
                     player1.shoot()
