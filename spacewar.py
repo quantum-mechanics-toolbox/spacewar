@@ -37,6 +37,12 @@ TEXT3_POS = (WIDTH/8, HEIGHT/2)
 TEXT4_POS = (WIDTH*7/8, HEIGHT/2)
 SCORE_SIZE = 40
 LABEL_SIZE = 10
+UI1_POS = (WIDTH*1.5/9, HEIGHT/6)
+UI2_POS = (WIDTH*1.1/9, HEIGHT/2)
+UI3_POS = (WIDTH*1.5/9, HEIGHT*5/6)
+UI4_POS = (WIDTH*7.5/9, HEIGHT/6)
+UI5_POS = (WIDTH*7.9/9, HEIGHT/2)
+UI6_POS = (WIDTH*7.5/9, HEIGHT*5/6)
 
 # define colors
 WHITE = (255, 255, 255)
@@ -58,15 +64,18 @@ pygame.init()
 pygame.mixer.init()
 #pygame.freetype.init()
 display_flags = pygame.FULLSCREEN
+#screen = pygame.display.set_mode((WIDTH, HEIGHT))
 screen = pygame.display.set_mode((WIDTH, HEIGHT), display_flags)
 #screen = pygame.display.set_mode((0,0), display_flags)
 print (screen.get_size())
 pygame.display.set_caption("Spacewar!")
 clock = pygame.time.Clock()
 print(pygame.freetype.get_default_font())
-font = pygame.freetype.Font("./fonts/OSCILLOS.TTF")
+#font = pygame.freetype.Font("./fonts/OSCILLOS.TTF")
+font = pygame.freetype.Font("./fonts/Oscilloscope5.ttf")
 font.fgcolor = MONO_COLOR
-
+#template = pygame.image.load("references/Lens_Template.png")
+#template = pygame.transform.scale(template, (WIDTH, HEIGHT))
 #%% Generic Functions
 
 def ran(number):
@@ -168,12 +177,16 @@ class Player(pygame.sprite.Sprite):
 #        self.speedx = 0
 #        self.speedy = 0
         if self.GetBoundary() > RADIUS:
+            if self.speedx == 0: self.speedx = 1
+            if self.speedy == 0: self.speedy = 1            
+            self.locx = WIDTH - self.locx + (1.0*self.speedx)
+            self.locy = HEIGHT - self.locy + (1.0*self.speedy)
 #            self.locx = WIDTH - self.locx + (4.0*self.speedx)
 #            self.locy = HEIGHT - self.locy + (4.0*self.speedy)
-            self.locx = WIDTH - self.locx
-            self.locy = HEIGHT - self.locy
-            self.locx += self.speedx
-            self.locy += self.speedy
+#            self.locx = WIDTH - self.locx
+#            self.locy = HEIGHT - self.locy
+#            self.locx += self.speedx
+#            self.locy += self.speedy
             self.rect.centerx = self.locx
             self.rect.centery = self.locy
         keystate = pygame.key.get_pressed()
@@ -409,6 +422,8 @@ overlay = Overlay()
 LastBulletTime1 = time.time() - BULLET_COOLDOWN
 LastBulletTime2 = time.time() - BULLET_COOLDOWN
 
+last_fps = 0
+
 #star = pygame.Surface((STAR_SIZE*2,STAR_SIZE*2))
 #pygame.draw.circle(star, MONO_COLOR, (STAR_SIZE,STAR_SIZE), STAR_SIZE)
 
@@ -510,12 +525,20 @@ while running:
     screen.blit(score_player1, SubCoords(SCORE1_POS, score_player1_rect.center))
     screen.blit(score_player2, SubCoords(SCORE2_POS, score_player2_rect.center))
     fps = int(1000.0/clock.tick())
+    fps = int(((29*last_fps) + fps)/30)
+    last_fps = fps
     fps_label, fps_label_rect = font.render(str(fps))
     sprites = len(all_sprites)
     sprites_label, sprites_label_rect = font.render(str(sprites))
+    speed_text = "{:.2f} {:.2f}".format(player1.speedx, player1.speedy)
+    speed_label, speed_label_rect = font.render(speed_text)
+#    speed_label, speed_label_rect = font.render(str(int(player1.speedx)) + ", " + str(int(player1.speedy)))
     screen.blit(fps_label, SubCoords(TEXT3_POS, fps_label_rect.center))
     screen.blit(sprites_label, SubCoords(TEXT4_POS, sprites_label_rect.center))
-    
+    screen.blit(speed_label, SubCoords(UI6_POS, speed_label_rect.center))
+
+### Show lens overlay
+#    screen.blit(template, (0,0))
 
 #    screen.blit(score_player2, SCORE2_POS - score_player2_rect.center)
     # *after* drawing everything, flip the display
