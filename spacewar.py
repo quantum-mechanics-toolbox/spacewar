@@ -380,7 +380,7 @@ def Overlay():
 
 def Background():
     background = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-    pygame.draw.rect(background, (0,0,0,255), background.get_rect())
+#    pygame.draw.rect(background, (0,0,0,255), background.get_rect())
     pygame.draw.circle(background, (0,0,0,0), CENTER, RADIUS)
     pygame.draw.circle(background, MONO_COLOR, CENTER, RADIUS, 1)
     for star in range(BG_STARS):
@@ -389,7 +389,7 @@ def Background():
         distance = random.randrange(STAR_SIZE, 0.9*RADIUS)
         position = (CENTER[0] + AngleToCoords(angle, distance)[0], CENTER[1] + AngleToCoords(angle, distance)[1])
         pygame.draw.circle(background, MONO_COLOR, position, size)
-    return background
+    return background.convert_alpha()
 
 class Star(pygame.sprite.Sprite):
     def __init__(self):
@@ -527,7 +527,7 @@ fade_fill = pygame.Surface((WIDTH, HEIGHT))
 fade_fill.set_alpha(FADE_PARAM)
 pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
 
-overlay = Overlay()
+#overlay = Overlay()
 
 #    background = pygame.sprite.Sprite()
 #        self.background.image = pygame.Surface((WIDTH, HEIGHT))
@@ -562,7 +562,8 @@ player2 = Player(2, 3)
 running = True
 while running:
     # keep loop running at the right speed
-    last_tick = clock.tick(FPS)
+#    last_tick = clock.tick(FPS)
+    last_tick = clock.tick()
     # Process input (events)
     for event in pygame.event.get():
         # check for closing window
@@ -613,7 +614,7 @@ while running:
     if (FADE): screen.blit(fade_fill, (0,0))
     else: screen.fill(BLACK)
 #    screen.blit(star, (CENTER[0]-STAR_SIZE, CENTER[1]-STAR_SIZE))
-    screen.blit(overlay, (0,0))
+    screen.blit(background, (0,0))
     all_sprites.draw(screen)
 
     HUD(screen)
