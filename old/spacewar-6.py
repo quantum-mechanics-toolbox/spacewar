@@ -450,8 +450,8 @@ def CreateElements():
     return lamp_surfs_player1, lamp_surfs_player2, background
 
 def HUD(screen):
-
-    global last_fps, last_tick
+    
+    global last_fps
 
     font.size = SCORE_SIZE
 #    score_player1, score_player1_rect = font.render(str(SCORE[0]))
@@ -461,7 +461,7 @@ def HUD(screen):
 #    screen.blit(score_player2, SubCoords(UI4_POS, score_player2_rect.center))
 #    screen.blit(score_player1, UI1_POS)
     screen.blit(score_player2, SubCoords(UI4_POS, score_player2_rect.center))
-
+    
     hyper_lamp_scale_1 = float(time.time() - LastHyperTime1)/HYPER_COOLDOWN
     if hyper_lamp_scale_1>1.0: hyper_lamp_scale_1 = 1.0
     index = int(19*hyper_lamp_scale_1)
@@ -484,8 +484,7 @@ def HUD(screen):
 
 #    screen.blit(score_player1, (-score_player1_rect[0]/2,-score_player1_rect[1]/2))
     font.size = LABEL_SIZE
-#    fps = int(1000.0/clock.tick())
-    fps = int(1000.0/last_tick)
+    fps = int(1000.0/clock.tick())
     fps = int(((29*last_fps) + fps)/30)
     last_fps = fps
     fps_text = "FPS: {:d}".format(fps)
@@ -505,7 +504,7 @@ def HUD(screen):
 ### Show lens overlay
 #    screen.blit(template, (0,0))
 
-
+        
 
 spawn_player1_event = pygame.USEREVENT + 1
 spawn_player2_event = pygame.USEREVENT + 2
@@ -562,7 +561,7 @@ player2 = Player(2, 3)
 running = True
 while running:
     # keep loop running at the right speed
-    last_tick = clock.tick(FPS)
+    clock.tick(FPS)
     # Process input (events)
     for event in pygame.event.get():
         # check for closing window
@@ -570,6 +569,7 @@ while running:
             running = False
         elif event.type == spawn_player1_event:
             all_sprites.add(player1)
+#            pygame.event.clear(spawn_player1_event)
         elif event.type == spawn_player2_event:
             all_sprites.add(player2)
         elif event.type == pygame.KEYDOWN:
@@ -587,22 +587,42 @@ while running:
         if (pygame.sprite.spritecollide(player1, bullets2, True)):
             player1.Explode()
             SCORE[1] += 1
+#            print(SCORE, len(all_sprites))
             pygame.time.set_timer(spawn_player1_event, 500, 1)
+#            player1.kill()
+    #        time.sleep(1)
+    #        player1 = Player(1, 2)
+    #        all_sprites.add(player1)
         if (pygame.sprite.spritecollide(player1, star_boundary, False)):
             player1.Explode()
             if SCORE[0] > 0:
                 SCORE[0] -= 1
+#            print(SCORE, len(all_sprites))
             pygame.time.set_timer(spawn_player1_event, 500, 1)
+#            player1.kill()
+    #        time.sleep(1)
+    #        player1 = Player(1, 2)
+    #        all_sprites.add(player1)
     if player2.alive():
         if (pygame.sprite.spritecollide(player2, bullets1, True)):
             player2.Explode()
             SCORE[0] += 1
+#            print(SCORE, len(all_sprites))
             pygame.time.set_timer(spawn_player2_event, 500, 1)
+    #        player2.kill()
+    #        time.sleep(1)
+    #        player2 = Player(2, 3)
+    #        all_sprites.add(player2)
         if (pygame.sprite.spritecollide(player2, star_boundary, False)):
             player2.Explode()
             if SCORE[1] > 0:
                 SCORE[1] -= 1
+#            print(SCORE, len(all_sprites))
             pygame.time.set_timer(spawn_player2_event, 500, 1)
+    #        player2.kill()
+    #        time.sleep(1)
+    #        player2 = Player(2, 3)
+    #        all_sprites.add(player2)
 
     # Update
 
@@ -616,8 +636,8 @@ while running:
     screen.blit(overlay, (0,0))
     all_sprites.draw(screen)
 
-    HUD(screen)
-
+    HUD(screen)    
+    
     # *after* drawing everything, flip the display
     pygame.display.flip()
 
