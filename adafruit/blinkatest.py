@@ -48,12 +48,49 @@ chan5 = AnalogIn(mcp, MCP.P5)
 chan6 = AnalogIn(mcp, MCP.P6)
 chan7 = AnalogIn(mcp, MCP.P7)
 
+lastval0 = chan0.value/65535
+lastval1 = chan1.value/65535
+lastval2 = chan2.value/65535
+lastval3 = chan3.value/65535
+lastval4 = chan4.value/65535
+lastval5 = chan5.value/65535
+maxhigh = 0.0
+
 while True:
-    print(chan0.value, chan1.value, chan2.value, chan3.value)
+    val0 = chan0.value/65535
+    val1 = chan1.value/65535
+    val2 = chan2.value/65535
+    val3 = chan3.value/65535
+    val4 = chan4.value/65535
+    val5 = chan5.value/65535
+
+    diff0 = val0-lastval0
+    diff1 = val1-lastval1
+    diff2 = val2-lastval2
+    diff3 = val3-lastval3
+    diff4 = val4-lastval4
+    diff5 = val5-lastval5
+    
+    maxdiff = max(abs(diff0), abs(diff1), abs(diff2), abs(diff3), abs(diff4), abs(diff5))
+    maxhigh = max(maxdiff, maxhigh)
+    avediff = (abs(diff0) + abs(diff1) + abs(diff2) + abs(diff3) + abs(diff4) + abs(diff5))/6
+    
+    print("{: 0.3f}\t{: 0.3f}\t{: 0.3f}\t{: 0.3f}\t{: 0.3f}\t{: 0.3f}".format(val0, val1, val2, val3, val4, val5))
+    print("{: 0.3f}\t{: 0.3f}\t{: 0.3f}\t{: 0.3f}\t{: 0.3f}\t{: 0.3f}".format(val0-lastval0, val1-lastval1, val2-lastval2, val3-lastval3, val4-lastval4, val5-lastval5))
+    print("MAX: {:0.3f}\t AVE: {:0.3f}\t\tMAX HIGH: {:0.3f}".format(maxdiff, avediff, maxhigh))
+
+    lastval0 = val0
+    lastval1 = val1
+    lastval2 = val2
+    lastval3 = val3
+    lastval4 = val4
+    lastval5 = val5
+
+#    print(chan0.value, chan1.value, chan2.value, chan3.value)
     #    print("Raw ADC Value: ", chan.value, "ADC Voltage: " + str(chan.voltage) + "V")
 #    print("Raw ADC Value: ", chan.value, )
 #    print("ADC Voltage: " + str(chan.voltage) + "V")
-    time.sleep(1)
+    time.sleep(0.25)
 
 
 
