@@ -10,6 +10,9 @@ import time
 import board
 import digitalio
 import busio
+import adafruit_mcp3xxx.mcp3008 as MCP
+from adafruit_mcp3xxx.analog_in import AnalogIn
+import colorsys
 
 # Try to create a Digital input
 pin = digitalio.DigitalInOut(board.D4)
@@ -23,8 +26,6 @@ print("I2C ok!")
 spi = busio.SPI(board.SCLK, board.MOSI, board.MISO)
 print("SPI ok!")
 
-import adafruit_mcp3xxx.mcp3008 as MCP
-from adafruit_mcp3xxx.analog_in import AnalogIn
 
 # create the spi bus
 spi = busio.SPI(clock=board.SCK, MISO=board.MISO, MOSI=board.MOSI)
@@ -43,7 +44,8 @@ chan3 = AnalogIn(mcp, MCP.P3)
 chan4 = AnalogIn(mcp, MCP.P4)
 chan5 = AnalogIn(mcp, MCP.P5)
 
-KNOB_NOISE = int(65535*0.015)
+KNOB_NOISE = 577 
+#MAX_ABS = 0
 #print(KNOB_NOISE)
 
 WIDTH = 1280
@@ -100,16 +102,14 @@ UI19_POS = (WIDTH/2, HEIGHT*1/4)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
-GREEN = (0, 255, 0)
+GREEN = (0, 255, 0) # HLS = 0.333, 0.5, 1.0
 CYAN = (0, 255, 255)
 BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
-ORANGE = (255,127,0)
-MONO_COLOR = ORANGE
+ORANGE = (255,127,0) # HLS = 0.0830, 0.5, 1.0
+MONO_COLOR = ORANGE 
 COLOR1 = CYAN
 COLOR2 = GREEN
-
-
 
 settings = {"game": "1962",
             "gravity": 80, #80
@@ -118,10 +118,15 @@ settings = {"game": "1962",
             "hyper_cool": 0.1, #10.0
             "bullet_speed": 2.0,
             "frag_decay": 50, #50
-            "fade_param": 8}
+            "fade_param": 8,
+            "mono_hue": 0.333,
+            "mono_lum": 0.5,
+            "mono_sat": 1.0
+            }
 
-    
-    
+RGB = colorsys.hls_to_rgb(settings['mono_hue'], settings['mono_lum'], settings['mono_sat'])    
+MONO_COLOR = (RGB[0]*255, RGB[1]*255, RGB[2]*255) 
+
 # initialize pygame and create window
 random.seed()
 os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (20,20)
@@ -162,7 +167,7 @@ class control():
         if channel == 5:
             self.channel = AnalogIn(mcp, MCP.P5)
         self.lastvalue = self.channel.value
-        print (self.lastvalue)
+#        print (self.lastvalue)
         self.scale = scale
         self.control = control
         self.minval = minval
@@ -171,10 +176,12 @@ class control():
     
     def ReadControl(self):
         value = self.channel.value
-#        if abs(value - self.lastvalue)>KNOB_NOISE:
-        if abs(value - self.lastvalue)>400:
-#            print("{:d} {:d}".format(value, abs(value - self.lastvalue)))
-#            print("Changed!")
+#        global MAX_ABS
+        if abs(value - self.lastvalue)>KNOB_NOISE:
+#            new_abs = abs(value - self.lastvalue)
+#            if new_abs > MAX_ABS:
+#                MAX_ABS = new_abs
+#                print(MAX_ABS)
             if self.scale == 'LIN':
                 setting_value = self.minval + ((self.maxval-self.minval)*value/65535)
             if self.scale == 'LOG':
@@ -182,7 +189,6 @@ class control():
             self.settings[self.control] = setting_value
             self.lastvalue = value
             return True
-#            print(self.settings[self.control])
         self.lastvalue = value
         return False
 
@@ -193,18 +199,23 @@ control_bullet_speed = control(3, 'LIN', 'bullet_speed', 1.0, 5.0, settings)
 control_bullet_cool = control(4, 'LIN', 'bullet_cool', 0.1, 3.0, settings)
 control_hyper_cool = control(5, 'LIN', 'hyper_cool', 0.1, 30.0, settings)
 
+control_mono_hue = control(3, 'LIN', 'mono_hue', 0.0, 1.0, settings)
+control_mono_sat = control(4, 'LIN', 'mono_sat', 0.0, 1.0, settings)
+control_mono_lum = control(5, 'LIN', 'mono_lum', 0.0, 1.0, settings)
+
+
 controls = []        
 controls.append(control_gravity)
 controls.append(control_sun_size)
 controls.append(control_frag_decay)
-controls.append(control_bullet_speed)
-controls.append(control_bullet_cool)
-controls.append(control_hyper_cool)
+# controls.append(control_bullet_speed)
+# controls.append(control_bullet_cool)
+# controls.append(control_hyper_cool)
+controls.append(control_mono_hue)
+controls.append(control_mono_lum)
+controls.append(control_mono_sat)
 
-#while True:
-#    control_gravity.ReadControl()
-#    print(settings['gravity'])
-#    time.sleep(1.0/30.0)
+
 
 
 
@@ -818,6 +829,16 @@ while running:
                 star.rect = star.image.get_rect()
                 star.rect.centerx = star.locx
                 star.rect.centery = star.locy
+            if (c.control == 'mono_hue') or (c.control == 'mono_sat') or (c.control == 'mono_lum'):   
+                RGB = colorsys.hls_to_rgb(settings['mono_hue'], settings['mono_lum'], settings['mono_sat'])    
+                MONO_COLOR = (RGB[0]*255, RGB[1]*255, RGB[2]*255) 
+                font.fgcolor = MONO_COLOR
+                background = Background()
+                pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
+                fade_fill.blit(background, (0,0))
+#                lamp_surfs_player1, lamp_surfs_player2, background = CreateElements()
+
+
 
 
 
