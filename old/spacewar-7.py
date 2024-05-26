@@ -7,44 +7,6 @@ import random
 import math
 import os
 import time
-import board
-import digitalio
-import busio
-
-# Try to create a Digital input
-pin = digitalio.DigitalInOut(board.D4)
-print("Digital IO ok!")
-
-# Try to create an I2C device
-i2c = busio.I2C(board.SCL, board.SDA)
-print("I2C ok!")
-
-# Try to create an SPI device
-spi = busio.SPI(board.SCLK, board.MOSI, board.MISO)
-print("SPI ok!")
-
-import adafruit_mcp3xxx.mcp3008 as MCP
-from adafruit_mcp3xxx.analog_in import AnalogIn
-
-# create the spi bus
-spi = busio.SPI(clock=board.SCK, MISO=board.MISO, MOSI=board.MOSI)
-
-# create the cs (chip select)
-cs = digitalio.DigitalInOut(board.D5)
-
-# create the mcp object
-mcp = MCP.MCP3008(spi, cs)
-
-# create an analog input channel on pin 0
-chan0 = AnalogIn(mcp, MCP.P0)
-chan1 = AnalogIn(mcp, MCP.P1)
-chan2 = AnalogIn(mcp, MCP.P2)
-chan3 = AnalogIn(mcp, MCP.P3)
-chan4 = AnalogIn(mcp, MCP.P4)
-chan5 = AnalogIn(mcp, MCP.P5)
-
-KNOB_NOISE = int(65535*0.015)
-#print(KNOB_NOISE)
 
 WIDTH = 1280
 HEIGHT = 800
@@ -52,49 +14,40 @@ ASPECT = float(WIDTH)/HEIGHT
 RADIUS = 420
 FPS = 60
 CENTER = (WIDTH/2, HEIGHT/2)
-#SHIP_NUM = 20
+G = 80.0
+BULLET_G = G/1.0
+SHIP_NUM = 20
 SHIP_SIZE = 1
-
+STAR_SIZE = 50
 BG_STARS = 60
 START_SPEED = 1.0
 MAX_SPEED = 20.0
 FADE = True
-#FADE_PARAM = 8
+FADE_PARAM = 8
+BULLET_COOLDOWN = 1
+HYPER_COOLDOWN = 10
+#NUM_HYPERS = 3
 
 FRAGMENTS = 50
+FRAG_DECAY = 50
 
 SCORE = [0,0]
-
-FULL_SCREEN = False
-SHOW_LABELS = False
-
+SCORE1_POS = (WIDTH/8, HEIGHT/6)
+SCORE2_POS = (WIDTH*7/8, HEIGHT/6)
+TEXT3_POS = (WIDTH/8, HEIGHT/2)
+TEXT4_POS = (WIDTH*7/8, HEIGHT/2)
 SCORE_SIZE = 60
 LABEL_SIZE = 20
-LAMP_SIZE = 150
-
 UI1_POS = (WIDTH*1.08/9, HEIGHT*1.5/10)
 UI2_POS = (WIDTH*0.52/9, HEIGHT/2)
 UI3_POS = (WIDTH*1.08/9, HEIGHT*8.5/10)
 UI4_POS = (WIDTH*7.92/9, HEIGHT*1.5/10)
 UI5_POS = (WIDTH*8.48/9, HEIGHT/2)
 UI6_POS = (WIDTH*7.92/9, HEIGHT*8.5/10)
-
-UI7_POS = (WIDTH*0.75/9, HEIGHT*1.2/6)
-UI8_POS = (WIDTH*0.75/9, HEIGHT*1.4/6)
-UI9_POS = (WIDTH*0.75/9, HEIGHT*1.6/6)
-UI10_POS = (WIDTH*0.75/9, HEIGHT*1.8/6)
-UI11_POS = (WIDTH*0.75/9, HEIGHT*2.0/6)
-UI12_POS = (WIDTH*0.75/9, HEIGHT*2.2/6)
-
-UI13_POS = (WIDTH*8.2/9, HEIGHT*1.2/6)
-UI14_POS = (WIDTH*8.2/9, HEIGHT*1.4/6)
-UI15_POS = (WIDTH*8.2/9, HEIGHT*1.6/6)
-UI16_POS = (WIDTH*8.2/9, HEIGHT*1.8/6)
-UI17_POS = (WIDTH*8.2/9, HEIGHT*2.0/6)
-UI18_POS = (WIDTH*8.2/9, HEIGHT*2.2/6)
-
-UI19_POS = (WIDTH/2, HEIGHT*1/4)
-
+UI7_POS = (WIDTH*8/9, HEIGHT*4/6)
+UI8_POS = (WIDTH*8/9, HEIGHT*4.2/6)
+UI9_POS = (WIDTH*8/9, HEIGHT*4.4/6)
+LAMP_SIZE = 150
 
 # define colors
 WHITE = (255, 255, 255)
@@ -109,105 +62,25 @@ MONO_COLOR = ORANGE
 COLOR1 = CYAN
 COLOR2 = GREEN
 
-
-
-settings = {"game": "1962",
-            "gravity": 80, #80
-            "sun_size": 50, #50
-            "bullet_cool": 1.0, #1.0
-            "hyper_cool": 0.1, #10.0
-            "bullet_speed": 2.0,
-            "frag_decay": 50, #50
-            "fade_param": 8}
-
-    
-    
 # initialize pygame and create window
 random.seed()
 os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (20,20)
 pygame.init()
 pygame.mixer.init()
 #pygame.freetype.init()
-
-if FULL_SCREEN:
-    display_flags = pygame.FULLSCREEN
-    screen = pygame.display.set_mode((WIDTH, HEIGHT), display_flags)
-#      screen = pygame.display.set_mode((0,0), display_flags)
-#    print (screen.get_size())
-else:
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+#screen = pygame.display.set_mode((WIDTH, HEIGHT))
+display_flags = pygame.FULLSCREEN
+screen = pygame.display.set_mode((WIDTH, HEIGHT), display_flags)
+#screen = pygame.display.set_mode((0,0), display_flags)
+#print (screen.get_size())
 pygame.display.set_caption("Spacewar!")
 clock = pygame.time.Clock()
-#print(pygame.freetype.get_default_font())
+print(pygame.freetype.get_default_font())
 #font = pygame.freetype.Font("./fonts/OSCILLOS.TTF")
 font = pygame.freetype.Font("./fonts/Oscilloscope5.ttf")
 font.fgcolor = MONO_COLOR
-font.size = LABEL_SIZE
-
 template = pygame.image.load("references/Lens_Template.png")
 template = pygame.transform.scale(template, (WIDTH, HEIGHT))
-
-class control():
-    def __init__(self, channel, scale, control, minval, maxval, settings):
-        if channel == 0:
-            self.channel = AnalogIn(mcp, MCP.P0)
-        if channel == 1:
-            self.channel = AnalogIn(mcp, MCP.P1)
-        if channel == 2:
-            self.channel = AnalogIn(mcp, MCP.P2)
-        if channel == 3:
-            self.channel = AnalogIn(mcp, MCP.P3)
-        if channel == 4:
-            self.channel = AnalogIn(mcp, MCP.P4)
-        if channel == 5:
-            self.channel = AnalogIn(mcp, MCP.P5)
-        self.lastvalue = self.channel.value
-        print (self.lastvalue)
-        self.scale = scale
-        self.control = control
-        self.minval = minval
-        self.maxval = maxval
-        self.settings = settings
-    
-    def ReadControl(self):
-        value = self.channel.value
-#        if abs(value - self.lastvalue)>KNOB_NOISE:
-        if abs(value - self.lastvalue)>400:
-#            print("{:d} {:d}".format(value, abs(value - self.lastvalue)))
-#            print("Changed!")
-            if self.scale == 'LIN':
-                setting_value = self.minval + ((self.maxval-self.minval)*value/65535)
-            if self.scale == 'LOG':
-                setting_value = self.minval + ((self.maxval-self.minval)*pow(10, (4*value/65535))/10000)
-            self.settings[self.control] = setting_value
-            self.lastvalue = value
-            return True
-#            print(self.settings[self.control])
-        self.lastvalue = value
-        return False
-
-control_gravity = control(0, 'LIN', 'gravity', 0.1, 200.0, settings)
-control_sun_size = control(1, 'LIN', 'sun_size', 0.1, 0.3*RADIUS, settings)
-control_frag_decay = control(2, 'LOG', 'frag_decay', 2, 1000.0, settings)
-control_bullet_speed = control(3, 'LIN', 'bullet_speed', 1.0, 5.0, settings)
-control_bullet_cool = control(4, 'LIN', 'bullet_cool', 0.1, 3.0, settings)
-control_hyper_cool = control(5, 'LIN', 'hyper_cool', 0.1, 30.0, settings)
-
-controls = []        
-controls.append(control_gravity)
-controls.append(control_sun_size)
-controls.append(control_frag_decay)
-controls.append(control_bullet_speed)
-controls.append(control_bullet_cool)
-controls.append(control_hyper_cool)
-
-#while True:
-#    control_gravity.ReadControl()
-#    print(settings['gravity'])
-#    time.sleep(1.0/30.0)
-
-
-
 #%% Generic Functions
 
 def ran(number):
@@ -269,7 +142,9 @@ def VectMag(a):
   mag = math.sqrt(a[0]**2 + a[1]**2)
   return mag 
 
-#%% Player & Bullet
+
+
+#%%
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, playernum, shiptype):
@@ -320,9 +195,7 @@ class Player(pygame.sprite.Sprite):
 #        self.locx = (WIDTH/2) - (random.randrange(RADIUS) - (RADIUS/2))
 #        self.locy = (HEIGHT/2) - (random.randrange(RADIUS) - (RADIUS/2))
         angle = random.random()*360
-#        distance = random.randrange(int(2*STAR_SIZE), int(0.9*RADIUS))
-#        distance = random.randrange(int(2*settings['sun_size']), int(0.9*RADIUS))
-        distance = random.randrange(int(settings['sun_size'] + ((RADIUS-settings['sun_size'])/2)), int(0.99*RADIUS))
+        distance = random.randrange(2*STAR_SIZE, 0.9*RADIUS)
         self.locx = CENTER[0] + AngleToCoords(angle, distance)[0]
         self.locy = CENTER[1] + AngleToCoords(angle, distance)[1]
         self.rect.centerx = self.locx
@@ -374,7 +247,7 @@ class Player(pygame.sprite.Sprite):
             if keystate[pygame.K_DOWN]:
                 #self.Explode()
                 #self.kill()
-                if (time.time() > (LastHyperTime1 + settings['hyper_cool'])):
+                if (time.time() > (LastHyperTime1 + HYPER_COOLDOWN)):
                     self.NewPos()
                     self.NewSpeed()
                     LastHyperTime1 = time.time()
@@ -392,7 +265,7 @@ class Player(pygame.sprite.Sprite):
                 self.speedx += thrust[1]
                 self.speedy += thrust[0]
             if keystate[pygame.K_s]:
-                if (time.time() > (LastHyperTime2 + settings['hyper_cool'])):
+                if (time.time() > (LastHyperTime2 + HYPER_COOLDOWN)):
                     self.NewPos()
                     self.NewSpeed()
                     LastHyperTime2 = time.time()
@@ -407,10 +280,8 @@ class Player(pygame.sprite.Sprite):
 #            self.NewPos()
 #            self.NewSpeed()
 #            self.kill()
-#        self.speedx -= G*(self.rect.centerx - CENTER[0])/pow(self.GetDistance(), 3)
-#        self.speedy -= G*(self.rect.centery - CENTER[1])/pow(self.GetDistance(), 3)
-        self.speedx -= settings['gravity']*(self.rect.centerx - CENTER[0])/pow(self.GetDistance(), 3)
-        self.speedy -= settings['gravity']*(self.rect.centery - CENTER[1])/pow(self.GetDistance(), 3)
+        self.speedx -= G*(self.rect.centerx - CENTER[0])/pow(self.GetDistance(), 3)
+        self.speedy -= G*(self.rect.centery - CENTER[1])/pow(self.GetDistance(), 3)
 #        self.CheckMaxSpeed()
         self.locx += self.speedx
         self.locy += self.speedy
@@ -436,8 +307,7 @@ class Player(pygame.sprite.Sprite):
         return pow(Dx + Dy, 0.5)
 
     def shoot(self):
-#        thrust = AngleToCoords(self.rot, -2.0)
-        thrust = AngleToCoords(self.rot, -1.0*settings['bullet_speed'])
+        thrust = AngleToCoords(self.rot, -2.0)
 #        bullet = Bullet(self.rect.centerx, self.rect.centery, self.speedx+thrust[0], self.speedy+thrust[1])
 #        bullet = Bullet(self.rect.centerx, self.rect.centery, self.speedx+thrust[1], self.speedy+thrust[0])
 #        bullet = Bullet(self.rect.centerx, self.rect.centery, thrust[1], thrust[0], self.color)
@@ -449,10 +319,13 @@ class Player(pygame.sprite.Sprite):
     def Explode(self):
         for frag in range(1, FRAGMENTS):
             thrust = AngleToCoords(random.randrange(1,360), random.randrange(1,5))
+    #        bullet = Bullet(self.rect.centerx, self.rect.centery, self.speedx+thrust[0], self.speedy+thrust[1])
+    #        bullet = Bullet(self.rect.centerx, self.rect.centery, self.speedx+thrust[1], self.speedy+thrust[0])
+    #        bullet = Bullet(self.rect.centerx, self.rect.centery, thrust[1], thrust[0], self.color)
 #"""static location"""
-#            bullet = Bullet(self.rect.centerx, self.rect.centery, thrust[0], thrust[1], self.color, random.randrange(settings['frag_decay']/2,settings['frag_decay']))
+#            bullet = Bullet(self.rect.centerx, self.rect.centery, thrust[0], thrust[1], self.color, random.randrange(FRAG_DECAY/2,FRAG_DECAY))
 #"""ship velocity location"""
-            bullet = Bullet(self.rect.centerx, self.rect.centery, thrust[0]+self.speedx, thrust[1]+self.speedy, self.color, random.randrange(int(settings['frag_decay']/2),int(settings['frag_decay'])))
+            bullet = Bullet(self.rect.centerx, self.rect.centery, thrust[0]+self.speedx, thrust[1]+self.speedy, self.color, random.randrange(FRAG_DECAY/2,FRAG_DECAY))
             all_sprites.add(bullet)
             if self.playernum==1: bullets1.add(bullet)
             elif self.playernum==2: bullets2.add(bullet)
@@ -463,7 +336,7 @@ class Player(pygame.sprite.Sprite):
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y, speedx, speedy, color, lifespan=-1):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.Surface((2, 2))
+        self.image = pygame.Surface((20, 20))
         self.image.fill(color)
         self.rect = self.image.get_rect()
         self.locx = x
@@ -483,14 +356,11 @@ class Bullet(pygame.sprite.Sprite):
             if self.lifespan == 0:
                 self.kill()
 #                print(SCORE, len(all_sprites))
-#        if (self.GetDistance() < STAR_SIZE):
-        if (self.GetDistance() < settings['sun_size']):
+        if (self.GetDistance() < STAR_SIZE):
             self.kill()
 #            print(SCORE, len(all_sprites))
-#        self.speedx -= BULLET_G*(self.rect.centerx - CENTER[0])/pow(self.GetDistance(), 3)
-#        self.speedy -= BULLET_G*(self.rect.centery - CENTER[1])/pow(self.GetDistance(), 3)
-        self.speedx -= settings['gravity']*(self.rect.centerx - CENTER[0])/pow(self.GetDistance(), 3)
-        self.speedy -= settings['gravity']*(self.rect.centery - CENTER[1])/pow(self.GetDistance(), 3)
+        self.speedx -= BULLET_G*(self.rect.centerx - CENTER[0])/pow(self.GetDistance(), 3)
+        self.speedy -= BULLET_G*(self.rect.centery - CENTER[1])/pow(self.GetDistance(), 3)
         self.locx += self.speedx
         self.locy += self.speedy
         self.rect.centerx = self.locx
@@ -513,8 +383,6 @@ class Bullet(pygame.sprite.Sprite):
             distance = 1
         return distance
 
-#%% Graphics
-
 def Background():
     background = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
 #    pygame.draw.rect(background, (0,0,0,255), background.get_rect())
@@ -524,23 +392,22 @@ def Background():
     for star in range(BG_STARS):
         size = random.randrange(1,3)
         angle = random.random()*360
-#        distance = random.randrange(STAR_SIZE, int(0.9*RADIUS))
-        distance = random.randrange(settings['sun_size'], int(0.9*RADIUS))
+        distance = random.randrange(STAR_SIZE, 0.9*RADIUS)
         position = (CENTER[0] + AngleToCoords(angle, distance)[0], CENTER[1] + AngleToCoords(angle, distance)[1])
         pygame.draw.circle(background, MONO_COLOR, position, size)
 ### Milky Way
     milky_color = ColorMult(MONO_COLOR, 0.5)
-#    print(milky_color)
+    print(milky_color)
 #    milky_color = MONO_COLOR
 #    print(milky_color)
     for star in range(40*BG_STARS):
         slope = 0.5
         spread = 0.3
-        x = random.randrange(int(CENTER[0] - RADIUS), int(CENTER[0] + RADIUS)) 
+        x = random.randrange(CENTER[0] - RADIUS, CENTER[0] + RADIUS) 
 #        y = (x*slope) + random.randrange(-1*RADIUS*spread, RADIUS*spread)
         y = int((x-CENTER[0])*slope) + CENTER[1]
         y += int(RADIUS*spread*(pow(2*random.random(),1.6)*RandSign()))
-#        print(x,y)
+        print(x,y)
         pygame.draw.circle(background, milky_color, (x,y), 1)
         
     return background.convert_alpha()
@@ -548,8 +415,7 @@ def Background():
 class Star(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
-#        self.image = pygame.Surface((STAR_SIZE*2,STAR_SIZE*2), pygame.SRCALPHA)
-        self.image = pygame.Surface((settings['sun_size']*2,settings['sun_size']*2), pygame.SRCALPHA)
+        self.image = pygame.Surface((STAR_SIZE*2,STAR_SIZE*2), pygame.SRCALPHA)
 #        pygame.draw.circle(self.image, MONO_COLOR, (STAR_SIZE,STAR_SIZE), STAR_SIZE, 3)
 #        self.image.fill(color)
         self.rect = self.image.get_rect()
@@ -561,13 +427,9 @@ class Star(pygame.sprite.Sprite):
 
     def update(self):
 #        self.image.fill((0,0,0))
-#        pygame.draw.circle(self.image, (0,0,0,1), (STAR_SIZE,STAR_SIZE), STAR_SIZE)
-        pygame.draw.circle(self.image, (0,0,0,1), (settings['sun_size'],settings['sun_size']), settings['sun_size'])
+        pygame.draw.circle(self.image, (0,0,0,1), (STAR_SIZE,STAR_SIZE), STAR_SIZE)
         if pygame.time.get_ticks()%2 == 0:
-#          pygame.draw.circle(self.image, MONO_COLOR, (STAR_SIZE,STAR_SIZE), random.random()*STAR_SIZE, 1)
-#          pygame.draw.circle(self.image, MONO_COLOR, (settings['sun_size'],settings['sun_size']), random.random()*settings['sun_size'], 1)
-          pygame.draw.circle(self.image, MONO_COLOR, (settings['sun_size'],settings['sun_size']), random.random()*settings['sun_size'], int(settings['sun_size']/50))
-#          pygame.draw.circle(self.image, MONO_COLOR, (settings['sun_size'],settings['sun_size']), random.random()*settings['sun_size'], int(settings['sun_size']*settings['sun_size']/50/50))
+          pygame.draw.circle(self.image, MONO_COLOR, (STAR_SIZE,STAR_SIZE), random.random()*STAR_SIZE, 1)
 
 def CreateElements():
     background = Background()
@@ -621,86 +483,51 @@ def HUD(screen):
 #    screen.blit(score_player1, UI1_POS)
     screen.blit(score_player2, SubCoords(UI4_POS, score_player2_rect.center))
 
-    hyper_lamp_scale_1 = float(time.time() - LastHyperTime1)/settings['hyper_cool']
+    hyper_lamp_scale_1 = float(time.time() - LastHyperTime1)/HYPER_COOLDOWN
     if hyper_lamp_scale_1>1.0: hyper_lamp_scale_1 = 1.0
     index = int(19*hyper_lamp_scale_1)
     screen.blit(lamp_surfs_player1[index], SubCoords(UI2_POS, lamp_surfs_player1[index].get_rect().center))
 
-    bullet_lamp_scale_1 = float(time.time() - LastBulletTime1)/settings['bullet_cool']
+    bullet_lamp_scale_1 = float(time.time() - LastBulletTime1)/BULLET_COOLDOWN
     if bullet_lamp_scale_1>1.0: bullet_lamp_scale_1 = 1.0
     index = int(19*bullet_lamp_scale_1)
     screen.blit(lamp_surfs_player1[index], SubCoords(UI3_POS, lamp_surfs_player1[index].get_rect().center))
 
-    hyper_lamp_scale_2 = float(time.time() - LastHyperTime2)/settings['hyper_cool']
+    hyper_lamp_scale_2 = float(time.time() - LastHyperTime2)/HYPER_COOLDOWN
     if hyper_lamp_scale_2>1.0: hyper_lamp_scale_2 = 1.0
     index = int(19*hyper_lamp_scale_2)
     screen.blit(lamp_surfs_player2[index], SubCoords(UI5_POS, lamp_surfs_player2[index].get_rect().center))
 
-    bullet_lamp_scale_2 = float(time.time() - LastBulletTime2)/settings['bullet_cool']
+    bullet_lamp_scale_2 = float(time.time() - LastBulletTime2)/BULLET_COOLDOWN
     if bullet_lamp_scale_2>1.0: bullet_lamp_scale_2 = 1.0
     index = int(19*bullet_lamp_scale_2)
     screen.blit(lamp_surfs_player2[index], SubCoords(UI6_POS, lamp_surfs_player2[index].get_rect().center))
 
+#    screen.blit(score_player1, (-score_player1_rect[0]/2,-score_player1_rect[1]/2))
     font.size = LABEL_SIZE
-
 #    fps = int(1000.0/clock.tick())
     fps = int(1000.0/last_tick)
     fps = int(((29*last_fps) + fps)/30)
     last_fps = fps
     fps_text = "FPS: {:d}".format(fps)
+#    print(fps_text)
+#    fps_label, fps_label_rect = font.render(str(fps))
     fps_label, fps_label_rect = font.render(fps_text)
+#    sprites = len(all_sprites)
+#    sprites_label, sprites_label_rect = font.render(str(sprites))
+    sprites_text = "Sprites = {:d}".format(len(all_sprites))
+    sprites_label, sprites_label_rect = font.render(sprites_text)
+    speed_text = "{:.2f}, {:.2f}".format(player1.speedx, player1.speedy)
+    speed_label, speed_label_rect = font.render(speed_text)
+#    speed_label, speed_label_rect = font.render(str(int(player1.speedx)) + ", " + str(int(player1.speedy)))
     screen.blit(fps_label, SubCoords(UI7_POS, fps_label_rect.center))
-
-    if SHOW_LABELS:
-    #    screen.blit(score_player1, (-score_player1_rect[0]/2,-score_player1_rect[1]/2))
-    
-        sprites_text = "Sprites = {:d}".format(len(all_sprites))
-        sprites_label, sprites_label_rect = font.render(sprites_text)
-    
-        speed_text = "{:.2f}, {:.2f}".format(player1.speedx, player1.speedy)
-        speed_label, speed_label_rect = font.render(speed_text)
-    
-        font.size = int(LABEL_SIZE*0.8)
-        gravity_text = "gravity = {:.1f}".format(settings['gravity'])
-        gravity_label, gravity_label_rect = font.render(gravity_text)
-    
-        sun_size_text = "sun size = {:.1f}".format(settings['sun_size'])
-        sun_size_label, sun_size_label_rect = font.render(sun_size_text)
-    
-        frag_decay_text = "frag decay = {:.1f}".format(settings['frag_decay'])
-        frag_decay_label, frag_decay_label_rect = font.render(frag_decay_text)
-
-        bullet_speed_text = "bullet speed = {:.1f}".format(settings['bullet_speed'])
-        bullet_speed_label, bullet_speed_label_rect = font.render(bullet_speed_text)        
-    
-        bullet_cool_text = "bullet cooldown = {:.1f}".format(settings['bullet_cool'])
-        bullet_cool_label, bullet_cool_label_rect = font.render(bullet_cool_text)
-    
-        hyper_cool_text = "hyper cooldown = {:.1f}".format(settings['hyper_cool'])
-        hyper_cool_label, hyper_cool_label_rect = font.render(hyper_cool_text)
-    
-    #            "gravity": 80, #80
-    #            "sun_size": 50, #50
-    #            "bullet_cool": 1.0, #1.0
-    #            "hyper_cool": 0.1, #10.0
-    #            "bullet_speed": 1.0,
-    #            "frag_decay": 50000, #50
-    
-    #    speed_label, speed_label_rect = font.render(str(int(player1.speedx)) + ", " + str(int(player1.speedy)))
-        screen.blit(sprites_label, SubCoords(UI8_POS, sprites_label_rect.center))
-        screen.blit(speed_label, SubCoords(UI9_POS, speed_label_rect.center))
-    
-        screen.blit(gravity_label, SubCoords(UI13_POS, gravity_label_rect.center))
-        screen.blit(sun_size_label, SubCoords(UI14_POS, sun_size_label_rect.center))
-        screen.blit(frag_decay_label, SubCoords(UI15_POS, frag_decay_label_rect.center))
-        screen.blit(bullet_speed_label, SubCoords(UI16_POS, bullet_speed_label_rect.center))
-        screen.blit(bullet_cool_label, SubCoords(UI17_POS, bullet_cool_label_rect.center))
-        screen.blit(hyper_cool_label, SubCoords(UI18_POS, hyper_cool_label_rect.center))
+    screen.blit(sprites_label, SubCoords(UI8_POS, sprites_label_rect.center))
+    screen.blit(speed_label, SubCoords(UI9_POS, speed_label_rect.center))
 
 ### Show lens overlay
 #    screen.blit(template, (0,0))
 
-#%% Game Setup
+
 
 spawn_player1_event = pygame.USEREVENT + 1
 spawn_player2_event = pygame.USEREVENT + 2
@@ -719,14 +546,14 @@ star_boundary.add(star)
 lamp_surfs_player1, lamp_surfs_player2, background = CreateElements()
 
 fade_fill = pygame.Surface((WIDTH, HEIGHT)).convert()
-fade_fill.set_alpha(settings['fade_param'])
+fade_fill.set_alpha(FADE_PARAM)
 pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
 fade_fill.blit(background, (0,0))
 
-LastBulletTime1 = time.time() - settings['bullet_cool']
-LastBulletTime2 = time.time() - settings['bullet_cool']
-LastHyperTime1 = time.time() - settings['hyper_cool']
-LastHyperTime2 = time.time() - settings['hyper_cool']
+LastBulletTime1 = time.time() - BULLET_COOLDOWN
+LastBulletTime2 = time.time() - BULLET_COOLDOWN
+LastHyperTime1 = time.time() - HYPER_COOLDOWN
+LastHyperTime2 = time.time() - HYPER_COOLDOWN
 
 last_fps = 0
 
@@ -750,7 +577,7 @@ while running:
     # keep loop running at the right speed
 #    last_tick = clock.tick(FPS)
     last_tick = clock.tick()
-        # Process input (events)
+    # Process input (events)
     for event in pygame.event.get():
         # check for closing window
         if event.type == pygame.QUIT:
@@ -763,11 +590,11 @@ while running:
             if event.key == pygame.K_ESCAPE:
                 pygame.quit()
             if (event.key == pygame.K_RSHIFT) or (event.key == pygame.K_c):
-                if (time.time() > (LastBulletTime1 + settings['bullet_cool'])):
+                if (time.time() > (LastBulletTime1 + BULLET_COOLDOWN)):
                     player1.shoot()
                     LastBulletTime1 = time.time()
             if event.key == pygame.K_f:
-                if (time.time() > (LastBulletTime2 + settings['bullet_cool'])):
+                if (time.time() > (LastBulletTime2 + BULLET_COOLDOWN)):
                     player2.shoot()
                     LastBulletTime2 = time.time()
     if player1.alive():
@@ -795,6 +622,7 @@ while running:
 
     all_sprites.update()
 
+
     # Draw / render
     if (FADE): screen.blit(fade_fill, (0,0))
     else: screen.fill(BLACK)
@@ -803,23 +631,6 @@ while running:
     all_sprites.draw(screen)
 
     HUD(screen)
-
-    # Read Control Knobs
-    font.size = LABEL_SIZE
-    for c in controls:
-        if (c.ReadControl()):
-#            label_text = "{} = {:.1f}".format(c.control, settings[c.control]).upper()
-            label_text = "{} = {:.1f}".format(c.control, settings[c.control])
-            label,label_rect = font.render(label_text)
-            label.set_alpha()
-            screen.blit(label, SubCoords(UI19_POS, label_rect.center))
-            if c.control == 'sun_size':
-                star.image = pygame.Surface((settings['sun_size']*2,settings['sun_size']*2), pygame.SRCALPHA)
-                star.rect = star.image.get_rect()
-                star.rect.centerx = star.locx
-                star.rect.centery = star.locy
-
-
 
     # *after* drawing everything, flip the display
     pygame.display.flip()
