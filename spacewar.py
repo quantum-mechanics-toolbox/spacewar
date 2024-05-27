@@ -14,6 +14,8 @@ import adafruit_mcp3xxx.mcp3008 as MCP
 from adafruit_mcp3xxx.analog_in import AnalogIn
 import colorsys
 
+#%% Hardware Setup
+
 # Try to create a Digital input
 pin = digitalio.DigitalInOut(board.D4)
 print("Digital IO ok!")
@@ -47,6 +49,8 @@ chan5 = AnalogIn(mcp, MCP.P5)
 KNOB_NOISE = 577 
 #MAX_ABS = 0
 #print(KNOB_NOISE)
+
+#%% Settings
 
 WIDTH = 1280
 HEIGHT = 800
@@ -108,10 +112,13 @@ BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 ORANGE = (255,127,0) # HLS = 0.0830, 0.5, 1.0
 MONO_COLOR = ORANGE 
-COLOR1 = CYAN
+DIM_COLOR = (0, 128, 0)
+#COLOR1 = CYAN
+COLOR1 = GREEN
 COLOR2 = GREEN
 
-settings = {"game": "1962",
+settings = {"mode": "menu",
+            "game": "1962",
             "gravity": 80, #80
             "sun_size": 50, #50
             "bullet_cool": 1.0, #1.0
@@ -124,8 +131,7 @@ settings = {"game": "1962",
             "mono_sat": 1.0
             }
 
-RGB = colorsys.hls_to_rgb(settings['mono_hue'], settings['mono_lum'], settings['mono_sat'])    
-MONO_COLOR = (RGB[0]*255, RGB[1]*255, RGB[2]*255) 
+
 
 # initialize pygame and create window
 random.seed()
@@ -151,6 +157,8 @@ font.size = LABEL_SIZE
 
 template = pygame.image.load("references/Lens_Template.png")
 template = pygame.transform.scale(template, (WIDTH, HEIGHT))
+
+#%% Control Setup
 
 class control():
     def __init__(self, channel, scale, control, minval, maxval, settings):
@@ -192,31 +200,83 @@ class control():
         self.lastvalue = value
         return False
 
-control_gravity = control(0, 'LIN', 'gravity', 0.1, 200.0, settings)
-control_sun_size = control(1, 'LIN', 'sun_size', 0.1, 0.3*RADIUS, settings)
+control_gravity = control(0, 'LIN', 'gravity', 0.1, 800.0, settings)
+control_sun_size = control(1, 'LIN', 'sun_size', 0.1, 0.7*RADIUS, settings)
 control_frag_decay = control(2, 'LOG', 'frag_decay', 2, 1000.0, settings)
 control_bullet_speed = control(3, 'LIN', 'bullet_speed', 1.0, 5.0, settings)
 control_bullet_cool = control(4, 'LIN', 'bullet_cool', 0.1, 3.0, settings)
 control_hyper_cool = control(5, 'LIN', 'hyper_cool', 0.1, 30.0, settings)
 
-control_mono_hue = control(3, 'LIN', 'mono_hue', 0.0, 1.0, settings)
-control_mono_sat = control(4, 'LIN', 'mono_sat', 0.0, 1.0, settings)
-control_mono_lum = control(5, 'LIN', 'mono_lum', 0.0, 1.0, settings)
-
+control_mono_hue = control(0, 'LIN', 'mono_hue', 0.0, 1.0, settings)
+control_mono_sat = control(1, 'LIN', 'mono_sat', 0.0, 1.0, settings)
+control_mono_lum = control(2, 'LIN', 'mono_lum', 0.0, 1.0, settings)
 
 controls = []        
 controls.append(control_gravity)
 controls.append(control_sun_size)
 controls.append(control_frag_decay)
-# controls.append(control_bullet_speed)
-# controls.append(control_bullet_cool)
-# controls.append(control_hyper_cool)
-controls.append(control_mono_hue)
-controls.append(control_mono_lum)
-controls.append(control_mono_sat)
+controls.append(control_bullet_speed)
+controls.append(control_bullet_cool)
+controls.append(control_hyper_cool)
+#controls.append(control_mono_hue)
+#controls.append(control_mono_lum)
+#controls.append(control_mono_sat)
+
+#%% Menu Setup
+
+class menu():
+    def __init__(self, name, parent, settings):
+        self.name = name
+        self.parent = parent
+        self.menu_items = []
+        self.control_items = []
+        self.select = 0
+        self.settings = settings
+   
+class menu_item():
+    def __init__(self, name, itemtype, parent, key="", contents = []):
+        self.name = name
+        self.itemtype = itemtype
+        self.contents = contents
+        self.select = 0
+        self.key = key
+       
+    def selected(self):
+        global active_menu, settings
+        if self.itemtype == "menu":
+            active_menu = self.name
+        if self.itemtype == "options":
+            self.select += 1
+            if self.select >= len(self.contents):
+                self.select = 0
+            settings[self.key] = self.contents[self.select]
+
+active_menu = ""        
+menus = {}
+
+main_menu = menu("main_menu", "", settings)
+game_menu_item = menu_item("game_version", "options", "main_menu", "game", ['1962','2024'])
+#game_menu_item.contents = ['1962', '2024']
+main_menu.menu_items.append(game_menu_item)
+system_menu_item = menu_item("system", "menu", "main_menu")
+main_menu.menu_items.append(system_menu_item)
+display_menu_item = menu_item("display", "menu", "main_menu")
+main_menu.menu_items.append(display_menu_item)
 
 
+ph_menu_item = menu_item("placeholder", "menu", "main_menu")
 
+system_menu = menu("system", "main_menu", settings)
+system_menu.menu_items.append(ph_menu_item)
+
+display_menu = menu("display", "main_menu", settings)
+display_menu.menu_items.append(ph_menu_item)
+display_menu.menu_items.append(ph_menu_item)
+    
+active_menu = "main_menu"
+menus[main_menu.name] = main_menu
+menus[system_menu.name] = system_menu
+menus[display_menu.name] = display_menu
 
 
 #%% Generic Functions
@@ -231,20 +291,25 @@ def SubCoords(a, b):
     return ((a[0]-b[0]),(a[1]-b[1]))
 
 def AngleToCoords(theta, mag):
-    theta = 6.2832*theta/360.0
+    theta = (6.2832/360)*theta
     MagX = mag*math.cos(theta)
     MagY = mag*math.sin(theta)
     return (MagX, MagY)
 
+def CoordsToAngle(MagX, MagY):
+    theta = (360.0/6.2832)*math.atan(MagY/MagX)
+    if MagX<0:
+        theta += 180.0
+    if MagX>0 and MagY<0:
+        theta += 360.0
+    mag = VectMag((MagX, MagY))
+    print("{:1f}\t{:1f}\t{:1f}\t{:1f}".format(MagX, MagY, theta, mag))
+    return theta, mag
+
 def SetColor():
     r_chan = ran(255)
-#    r_chan = 255
     g_chan = ran(255)
     b_chan = ran(255)
-#    r_chan = (r_chan/2) + 128
-#    g_chan = (g_chan/2) + 128
-#    b_chan = (b_chan/2) + 128
-#    print (r_chan, g_chan, b_chan)
     return (r_chan, g_chan, b_chan)
 
 def ColorTint(source, tint):
@@ -358,11 +423,18 @@ class Player(pygame.sprite.Sprite):
 #        self.speedx = 0
 #        self.speedy = 0
         if self.GetBoundary() > RADIUS:
-            self.locx = WIDTH - self.locx
-            self.locy = HEIGHT - self.locy
-            if (self.speedx < 1.0) and (self.speedx > -1.0) and (self.speedy < 1.0) and (self.speedy > -1.0):
-                self.locx = self.locx + (10.0*self.speedx)
-                self.locy = self.locy + (10.0*self.speedy)
+            angle, pos = CoordsToAngle(self.locx-CENTER[0], self.locy-CENTER[1]) 
+            angle -=180
+            pos = 0.99*pos
+            x,y = AngleToCoords(angle, pos)
+            self.locx = CENTER[0] + x
+            self.locy = CENTER[1] + y
+            
+            # self.locx = WIDTH - self.locx
+            # self.locy = HEIGHT - self.locy
+            # if (self.speedx < 1.0) and (self.speedx > -1.0) and (self.speedy < 1.0) and (self.speedy > -1.0):
+            #     self.locx = self.locx + (10.0*self.speedx)
+            #     self.locy = self.locy + (10.0*self.speedy)
 
 #            self.locx = WIDTH - self.locx + (4.0*self.speedx)
 #            self.locy = HEIGHT - self.locy + (4.0*self.speedy)
@@ -452,7 +524,8 @@ class Player(pygame.sprite.Sprite):
 #        bullet = Bullet(self.rect.centerx, self.rect.centery, self.speedx+thrust[0], self.speedy+thrust[1])
 #        bullet = Bullet(self.rect.centerx, self.rect.centery, self.speedx+thrust[1], self.speedy+thrust[0])
 #        bullet = Bullet(self.rect.centerx, self.rect.centery, thrust[1], thrust[0], self.color)
-        bullet = Bullet(self.rect.centerx, self.rect.centery, thrust[1], thrust[0], YELLOW)
+#        bullet = Bullet(self.rect.centerx, self.rect.centery, thrust[1], thrust[0], YELLOW)
+        bullet = Bullet(self.rect.centerx, self.rect.centery, thrust[1], thrust[0], MONO_COLOR)
         all_sprites.add(bullet)
         if self.playernum==1: bullets1.add(bullet)
         elif self.playernum==2: bullets2.add(bullet)
@@ -525,6 +598,12 @@ class Bullet(pygame.sprite.Sprite):
         return distance
 
 #%% Graphics
+
+def SetMonoColor(settings):
+    global MONO_COLOR, DIM_COLOR
+    RGB = colorsys.hls_to_rgb(settings['mono_hue'], settings['mono_lum'], settings['mono_sat'])    
+    MONO_COLOR = (RGB[0]*255, RGB[1]*255, RGB[2]*255) 
+    DIM_COLOR = ColorMult(MONO_COLOR, 0.5)
 
 def Background():
     background = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -624,6 +703,8 @@ def HUD(screen):
     global last_fps, last_tick
 
     font.size = SCORE_SIZE
+    font.fgcolor = MONO_COLOR
+
 #    score_player1, score_player1_rect = font.render(str(SCORE[0]))
     score_player1, score_player1_rect = font.render("{:02d}".format(SCORE[0]))
     score_player2, score_player2_rect = font.render("{:02d}".format(SCORE[1]))
@@ -670,6 +751,14 @@ def HUD(screen):
     
         speed_text = "{:.2f}, {:.2f}".format(player1.speedx, player1.speedy)
         speed_label, speed_label_rect = font.render(speed_text)
+        
+        p1x = player1.locx-CENTER[0]
+        p1y = player1.locy-CENTER[1]
+        p1a, p1m = CoordsToAngle(p1x, p1y)
+        pos_text1 = "{:.1f},{:.1f}".format(p1x, p1y)
+        pos_label1, pos_label_rect1 = font.render(pos_text1)
+        pos_text2 = "{:.1f},{:.1f}".format(p1a, p1m)
+        pos_label2, pos_label_rect2 = font.render(pos_text2)
     
         font.size = int(LABEL_SIZE*0.8)
         gravity_text = "gravity = {:.1f}".format(settings['gravity'])
@@ -700,6 +789,8 @@ def HUD(screen):
     #    speed_label, speed_label_rect = font.render(str(int(player1.speedx)) + ", " + str(int(player1.speedy)))
         screen.blit(sprites_label, SubCoords(UI8_POS, sprites_label_rect.center))
         screen.blit(speed_label, SubCoords(UI9_POS, speed_label_rect.center))
+        screen.blit(pos_label1, SubCoords(UI10_POS, pos_label_rect1.center))
+        screen.blit(pos_label2, SubCoords(UI11_POS, pos_label_rect2.center))
     
         screen.blit(gravity_label, SubCoords(UI13_POS, gravity_label_rect.center))
         screen.blit(sun_size_label, SubCoords(UI14_POS, sun_size_label_rect.center))
@@ -712,6 +803,8 @@ def HUD(screen):
 #    screen.blit(template, (0,0))
 
 #%% Game Setup
+
+SetMonoColor(settings)
 
 spawn_player1_event = pygame.USEREVENT + 1
 spawn_player2_event = pygame.USEREVENT + 2
@@ -753,7 +846,103 @@ player2 = Player(2, 3)
 #all_sprites.add(player1)
 #all_sprites.add(player2)
 
+#%% Menu Loop
 
+
+while settings['mode'] == 'menu':
+    last_tick = clock.tick()
+    for event in pygame.event.get():
+        # check for closing window
+        if event.type == pygame.QUIT:
+            running = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                pygame.quit()
+### Up
+            if (event.key == pygame.K_LEFT) or (event.key == pygame.K_a):
+                menus[active_menu].select -= 1
+                if menus[active_menu].select < 0:
+                    menus[active_menu].select = len(menus[active_menu].menu_items)-1
+### Down
+            if (event.key == pygame.K_RIGHT) or (event.key == pygame.K_d):
+                menus[active_menu].select += 1
+                if menus[active_menu].select >= len(menus[active_menu].menu_items):
+                    menus[active_menu].select = 0
+### Back
+            if (event.key == pygame.K_RSHIFT) or (event.key == pygame.K_c) or (event.key == pygame.K_f):
+#                print("{} Parent: {}".format(active_menu, menus[active_menu].parent))
+                if menus[active_menu].parent != "":
+                    active_menu = menus[active_menu].parent
+### Select
+            if (event.key == pygame.K_UP) or (event.key == pygame.K_w):
+                menus[active_menu].menu_items[menus[active_menu].select].selected()
+#                print(active_menu)
+#                print(menus[active_menu].menu_items)
+### Revert
+#            if (event.key == pygame.K_DOWN) or (event.key == pygame.K_s):
+
+        elif event.type == spawn_player1_event:
+            all_sprites.add(player1)
+        elif event.type == spawn_player2_event:
+            all_sprites.add(player2)
+
+            
+
+    if player1.alive():
+        if (pygame.sprite.spritecollide(player1, bullets2, True)):
+            player1.Explode()
+            SCORE[1] += 1
+            pygame.time.set_timer(spawn_player1_event, 500, 1)
+        if (pygame.sprite.spritecollide(player1, star_boundary, False)):
+            player1.Explode()
+            #if SCORE[0] > 0:
+            #    SCORE[0] -= 1
+            pygame.time.set_timer(spawn_player1_event, 500, 1)
+    if player2.alive():
+        if (pygame.sprite.spritecollide(player2, bullets1, True)):
+            player2.Explode()
+            SCORE[0] += 1
+            pygame.time.set_timer(spawn_player2_event, 500, 1)
+        if (pygame.sprite.spritecollide(player2, star_boundary, False)):
+            player2.Explode()
+            #if SCORE[1] > 0:
+            #    SCORE[1] -= 1
+            pygame.time.set_timer(spawn_player2_event, 500, 1)
+
+
+    # Update
+    all_sprites.update()
+
+    # Draw / render
+    if (FADE): screen.blit(fade_fill, (0,0))
+    else: screen.fill(BLACK)
+
+    all_sprites.draw(screen)
+
+    HUD(screen)
+
+    # Read Control Knobs
+    font.size = LABEL_SIZE*2
+    items = len(menus[active_menu].menu_items)
+    for i in range(items):
+        item = menus[active_menu].menu_items[i]
+        if menus[active_menu].select == i:
+            font.fgcolor = MONO_COLOR
+        else:
+            font.fgcolor = DIM_COLOR
+
+        if item.itemtype == 'menu':
+            label_text = "{}".format(item.name)
+        elif item.itemtype == 'options':
+            label_text = "{}: {}".format(item.name, item.contents[item.select])
+        label,label_rect = font.render(label_text)
+        label.set_alpha()
+        screen.blit(label, SubCoords((UI19_POS[0],UI19_POS[1]+(i*2.5*LABEL_SIZE)) , label_rect.center))
+
+# *after* drawing everything, flip the display
+    pygame.display.flip()
+    
+#%% Game Loop
 
 # Game loop
 running = True
@@ -803,7 +992,6 @@ while running:
             pygame.time.set_timer(spawn_player2_event, 500, 1)
 
     # Update
-
     all_sprites.update()
 
     # Draw / render
@@ -817,6 +1005,7 @@ while running:
 
     # Read Control Knobs
     font.size = LABEL_SIZE
+    font.fgcolor = MONO_COLOR
     for c in controls:
         if (c.ReadControl()):
 #            label_text = "{} = {:.1f}".format(c.control, settings[c.control]).upper()
@@ -837,10 +1026,6 @@ while running:
                 pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
                 fade_fill.blit(background, (0,0))
 #                lamp_surfs_player1, lamp_surfs_player2, background = CreateElements()
-
-
-
-
 
     # *after* drawing everything, flip the display
     pygame.display.flip()
