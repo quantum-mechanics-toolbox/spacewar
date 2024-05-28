@@ -101,6 +101,15 @@ UI18_POS = (WIDTH*8.2/9, HEIGHT*2.2/6)
 
 UI19_POS = (WIDTH/2, HEIGHT*1/4)
 
+control_label_pos = []
+control_label_pos.append((UI19_POS[0]-200,UI19_POS[1]-(3*LABEL_SIZE)))
+control_label_pos.append((UI19_POS[0],UI19_POS[1]-(3*LABEL_SIZE)))
+control_label_pos.append((UI19_POS[0]+200,UI19_POS[1]-(3*LABEL_SIZE)))
+control_label_pos.append((UI19_POS[0]-200,UI19_POS[1]+(4*LABEL_SIZE)))
+control_label_pos.append((UI19_POS[0],UI19_POS[1]+(4*LABEL_SIZE)))
+control_label_pos.append((UI19_POS[0]+200,UI19_POS[1]+(4*LABEL_SIZE)))
+
+
 
 # define colors
 WHITE = (255, 255, 255)
@@ -113,6 +122,7 @@ YELLOW = (255, 255, 0)
 ORANGE = (255,127,0) # HLS = 0.0830, 0.5, 1.0
 MONO_COLOR = ORANGE 
 DIM_COLOR = (0, 128, 0)
+OFF_COLOR = (0, 64, 0)
 #COLOR1 = CYAN
 COLOR1 = GREEN
 COLOR2 = GREEN
@@ -128,7 +138,13 @@ settings = {"mode": "menu",
             "fade_param": 8,
             "mono_hue": 0.333,
             "mono_lum": 0.5,
-            "mono_sat": 1.0
+            "mono_sat": 1.0,
+            "p1_hue": 0.333,
+            "p1_lum": 0.5,
+            "p1_sat": 1.0,
+            "p2_hue": 0.333,
+            "p2_lum": 0.5,
+            "p2_sat": 1.0
             }
 
 
@@ -210,6 +226,15 @@ control_hyper_cool = control(5, 'LIN', 'hyper_cool', 0.1, 30.0, settings)
 control_mono_hue = control(0, 'LIN', 'mono_hue', 0.0, 1.0, settings)
 control_mono_sat = control(1, 'LIN', 'mono_sat', 0.0, 1.0, settings)
 control_mono_lum = control(2, 'LIN', 'mono_lum', 0.0, 1.0, settings)
+control_fade = control(3, 'LIN', 'fade_param', 1.0, 32.0, settings)
+
+control_p_one_hue = control(0, 'LIN', 'p1_hue', 0.0, 1.0, settings)
+control_p_one_sat = control(1, 'LIN', 'p1_sat', 0.0, 1.0, settings)
+control_p_one_lum = control(2, 'LIN', 'p1_lum', 0.0, 1.0, settings)
+
+control_p_two_hue = control(3, 'LIN', 'p2_hue', 0.0, 1.0, settings)
+control_p_two_sat = control(4, 'LIN', 'p2_sat', 0.0, 1.0, settings)
+control_p_two_lum = control(5, 'LIN', 'p2_lum', 0.0, 1.0, settings)
 
 controls = []        
 controls.append(control_gravity)
@@ -225,14 +250,24 @@ controls.append(control_hyper_cool)
 #%% Menu Setup
 
 class menu():
-    def __init__(self, name, parent, settings):
+    def __init__(self, name, parent, settings, help_gfx):
         self.name = name
         self.parent = parent
         self.menu_items = []
         self.control_items = []
         self.select = 0
         self.settings = settings
-   
+        self.settings_hold = settings.copy()
+        self.help_gfx=help_gfx
+        
+    def enter(self):
+        self.settings_hold = self.settings.copy()
+        
+    def reset(self):
+        for i in range(len(self.control_items)):
+            key = self.control_items[i].control
+            self.settings[key] = self.settings_hold[key] 
+        
 class menu_item():
     def __init__(self, name, itemtype, parent, key="", contents = []):
         self.name = name
@@ -254,7 +289,7 @@ class menu_item():
 active_menu = ""        
 menus = {}
 
-main_menu = menu("main_menu", "", settings)
+main_menu = menu("main_menu", "", settings, 0)
 game_menu_item = menu_item("game_version", "options", "main_menu", "game", ['1962','2024'])
 #game_menu_item.contents = ['1962', '2024']
 main_menu.menu_items.append(game_menu_item)
@@ -266,17 +301,43 @@ main_menu.menu_items.append(display_menu_item)
 
 ph_menu_item = menu_item("placeholder", "menu", "main_menu")
 
-system_menu = menu("system", "main_menu", settings)
-system_menu.menu_items.append(ph_menu_item)
+system_menu = menu("system", "main_menu", settings, 2)
+system_menu.control_items = [control_gravity,
+                             control_sun_size,
+                             control_frag_decay,
+                             control_bullet_speed,
+                             control_bullet_cool,
+                             control_hyper_cool]
+#system_menu.menu_items.append(ph_menu_item)
 
-display_menu = menu("display", "main_menu", settings)
-display_menu.menu_items.append(ph_menu_item)
-display_menu.menu_items.append(ph_menu_item)
+display_menu = menu("display", "main_menu", settings, 1)
+system_color_menu_item = menu_item("system_display", "menu", "display")
+display_menu.menu_items.append(system_color_menu_item)
+player_color_menu_item = menu_item("player_display", "menu", "display")
+display_menu.menu_items.append(player_color_menu_item)
+
+system_color_menu = menu("system_display", "display", settings, 2)
+system_color_menu.control_items = [control_mono_hue,
+                                 control_mono_sat,
+                                 control_mono_lum,
+                                 control_fade]
+
+player_color_menu = menu("player_display", "display", settings, 2)
+player_color_menu.control_items = [control_p_one_hue,
+                                 control_p_one_sat,
+                                 control_p_one_lum,
+                                 control_p_two_hue,
+                                 control_p_two_sat,
+                                 control_p_two_lum]
+
+
     
 active_menu = "main_menu"
 menus[main_menu.name] = main_menu
 menus[system_menu.name] = system_menu
 menus[display_menu.name] = display_menu
+menus[system_color_menu.name] = system_color_menu
+menus[player_color_menu.name] = player_color_menu
 
 
 #%% Generic Functions
@@ -599,11 +660,16 @@ class Bullet(pygame.sprite.Sprite):
 
 #%% Graphics
 
-def SetMonoColor(settings):
-    global MONO_COLOR, DIM_COLOR
+def SetColor(settings):
+    global MONO_COLOR, DIM_COLOR, OFF_COLOR, COLOR1, COLOR2
     RGB = colorsys.hls_to_rgb(settings['mono_hue'], settings['mono_lum'], settings['mono_sat'])    
     MONO_COLOR = (RGB[0]*255, RGB[1]*255, RGB[2]*255) 
     DIM_COLOR = ColorMult(MONO_COLOR, 0.5)
+    OFF_COLOR = ColorMult(MONO_COLOR, 0.25)
+    RGB = colorsys.hls_to_rgb(settings['p1_hue'], settings['p1_lum'], settings['p1_sat'])    
+    COLOR1 = (RGB[0]*255, RGB[1]*255, RGB[2]*255) 
+    RGB = colorsys.hls_to_rgb(settings['p2_hue'], settings['p2_lum'], settings['p2_sat'])    
+    COLOR2 = (RGB[0]*255, RGB[1]*255, RGB[2]*255) 
 
 def Background():
     background = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -615,7 +681,7 @@ def Background():
         size = random.randrange(1,3)
         angle = random.random()*360
 #        distance = random.randrange(STAR_SIZE, int(0.9*RADIUS))
-        distance = random.randrange(settings['sun_size'], int(0.9*RADIUS))
+        distance = random.randrange(int(settings['sun_size']), int(0.9*RADIUS))
         position = (CENTER[0] + AngleToCoords(angle, distance)[0], CENTER[1] + AngleToCoords(angle, distance)[1])
         pygame.draw.circle(background, MONO_COLOR, position, size)
 ### Milky Way
@@ -659,44 +725,137 @@ class Star(pygame.sprite.Sprite):
           pygame.draw.circle(self.image, MONO_COLOR, (settings['sun_size'],settings['sun_size']), random.random()*settings['sun_size'], int(settings['sun_size']/50))
 #          pygame.draw.circle(self.image, MONO_COLOR, (settings['sun_size'],settings['sun_size']), random.random()*settings['sun_size'], int(settings['sun_size']*settings['sun_size']/50/50))
 
-def CreateElements():
-    background = Background()
+def HelpFrames():
+#    help_frame = pygame.Surface((WIDTH/2, HEIGHT/6), pygame.SRCALPHA)
+    help_frames = []
+    spacing = 100
+    margin = 20
+    HELP_COLOR = MONO_COLOR
+    font.size = LABEL_SIZE
+    font.fgcolor = HELP_COLOR
+#    help_frame_rect = help_frame.get_rect()
+#    pygame.draw.rect(help_frame, MONO_COLOR, help_frame_rect, 1) 
 
+    labels = ['UP', 'DOWN', 'SELECT', 'BACK', 'RESET']
+
+    help_frame = pygame.Surface((spacing*5, (font.size*1.25)+72), pygame.SRCALPHA)
+    for i in range(5):
+        if i<3:
+            COLOR = MONO_COLOR
+        else:
+            COLOR = DIM_COLOR
+        font.fgcolor = COLOR
+        pygame.draw.rect(help_frame, (0,0,0), (margin+(i*spacing),(font.size*1.25),52,72))
+        pygame.draw.rect(help_frame, COLOR, (margin+(i*spacing),(font.size*1.25),52,72), 3)
+        pygame.draw.rect(help_frame, COLOR, (6 + margin+(i*spacing),6+(font.size*1.25),40,60), 3)
+        label_text = "{}".format(labels[i])
+        label,label_rect = font.render(label_text)
+        label.set_alpha()
+        help_frame.blit(label, SubCoords((margin + 27 + (i*spacing), LABEL_SIZE), label_rect.center))
+    help_frames.append(help_frame)
+
+    help_frame = pygame.Surface((spacing*5, (font.size*1.25)+72), pygame.SRCALPHA)
+    for i in range(5):
+        if i<4:
+            COLOR = MONO_COLOR
+        else:
+            COLOR = DIM_COLOR
+        font.fgcolor = COLOR
+        pygame.draw.rect(help_frame, (0,0,0), (margin+(i*spacing),(font.size*1.25),52,72))
+        pygame.draw.rect(help_frame, COLOR, (margin+(i*spacing),(font.size*1.25),52,72), 3)
+        pygame.draw.rect(help_frame, COLOR, (6 + margin+(i*spacing),6+(font.size*1.25),40,60), 3)
+        label_text = "{}".format(labels[i])
+        label,label_rect = font.render(label_text)
+        label.set_alpha()
+        help_frame.blit(label, SubCoords((margin + 27 + (i*spacing), LABEL_SIZE), label_rect.center))
+    help_frames.append(help_frame)
+
+    help_frame = pygame.Surface((spacing*5, (font.size*1.25)+72), pygame.SRCALPHA)
+    for i in range(5):
+        pygame.draw.rect(help_frame, (0,0,0), (margin+(i*spacing),(font.size*1.25),52,72))
+        pygame.draw.rect(help_frame, HELP_COLOR, (margin+(i*spacing),(font.size*1.25),52,72), 3)
+        pygame.draw.rect(help_frame, HELP_COLOR, (6 + margin+(i*spacing),6+(font.size*1.25),40,60), 3)
+        label_text = "{}".format(labels[i])
+        label,label_rect = font.render(label_text)
+        label.set_alpha()
+        help_frame.blit(label, SubCoords((margin + 27 + (i*spacing), LABEL_SIZE), label_rect.center))
+    help_frames.append(help_frame)
+
+    return help_frames
+
+def Knob():
+    knob = pygame.Surface((40,40), pygame.SRCALPHA)
+    pygame.draw.circle(knob, (0,0,0), (20,20), 20)
+    pygame.draw.circle(knob, MONO_COLOR, (20,20), 20, 3)
+    pygame.draw.rect(knob, MONO_COLOR, (19,0,3,15), 3)
+    return knob
+
+def LampSurfs(color):    
     lamp_surf = pygame.image.load("./gfx/lamp.png")
     lamp_surf = lamp_surf.convert_alpha()
     lamp_surf = pygame.transform.scale(lamp_surf, (LAMP_SIZE, LAMP_SIZE))
 
-### Player 1 Lamp
-    lamp_surf_player1 = lamp_surf.copy()
+### Player Lamp
+    lamp_surf_player = lamp_surf.copy()
     for x in range(0, lamp_surf.get_width()):
       for y in range(0, lamp_surf.get_height()):
-        lamp_surf_player1.set_at((x,y), ColorTint(lamp_surf.get_at((x,y)), COLOR1))
-### Player 2 Lamp
-    lamp_surf_player2 = lamp_surf.copy()
-    for x in range(0, lamp_surf.get_width()):
-      for y in range(0, lamp_surf.get_height()):
-        lamp_surf_player2.set_at((x,y), ColorTint(lamp_surf.get_at((x,y)), COLOR2))
+        lamp_surf_player.set_at((x,y), ColorTint(lamp_surf.get_at((x,y)), color))
 
     levels = []
     for i in range(20):
       levels.append(int(20*i/19))
     levels[18] = levels[17]
-#    print(levels)
-#    for surfs in range(20):
-#      print(((20.0-levels[surfs])/20.0))
-    lamp_surfs_player1 = []
-    lamp_surfs_player2 = []
+    lamp_surfs_player = []
     for surfs in range(20):
-      sub_lamp_surf_player1 = lamp_surf_player1.copy()
-      sub_lamp_surf_player2 = lamp_surf_player2.copy()
-      for x in range(0, sub_lamp_surf_player1.get_width()):
-        for y in range(0, sub_lamp_surf_player1.get_height()):
-          sub_lamp_surf_player1.set_at((x,y), ColorSubtract(sub_lamp_surf_player1.get_at((x,y)), int(255*((20.0-levels[surfs])/20.0))))
-          sub_lamp_surf_player2.set_at((x,y), ColorSubtract(sub_lamp_surf_player2.get_at((x,y)), int(255*((20.0-levels[surfs])/20.0))))
-      lamp_surfs_player1.append(sub_lamp_surf_player1.convert())
-      lamp_surfs_player2.append(sub_lamp_surf_player2.convert())
+      sub_lamp_surf_player = lamp_surf_player.copy()
+      for x in range(0, sub_lamp_surf_player.get_width()):
+        for y in range(0, sub_lamp_surf_player.get_height()):
+          sub_lamp_surf_player.set_at((x,y), ColorSubtract(sub_lamp_surf_player.get_at((x,y)), int(255*((20.0-levels[surfs])/20.0))))
+      lamp_surfs_player.append(sub_lamp_surf_player.convert())
+    return lamp_surfs_player
 
-    return lamp_surfs_player1, lamp_surfs_player2, background
+# def LampSurfsPlayer2():    
+#     lamp_surf = pygame.image.load("./gfx/lamp.png")
+#     lamp_surf = lamp_surf.convert_alpha()
+#     lamp_surf = pygame.transform.scale(lamp_surf, (LAMP_SIZE, LAMP_SIZE))
+
+# ### Player 2 Lamp
+#     lamp_surf_player2 = lamp_surf.copy()
+#     for x in range(0, lamp_surf.get_width()):
+#       for y in range(0, lamp_surf.get_height()):
+#         lamp_surf_player2.set_at((x,y), ColorTint(lamp_surf.get_at((x,y)), COLOR2))
+
+#     levels = []
+#     for i in range(20):
+#       levels.append(int(20*i/19))
+#     levels[18] = levels[17]
+# #    print(levels)
+# #    for surfs in range(20):
+# #      print(((20.0-levels[surfs])/20.0))
+#     lamp_surfs_player1 = []
+#     lamp_surfs_player2 = []
+#     for surfs in range(20):
+#       sub_lamp_surf_player1 = lamp_surf_player1.copy()
+#       sub_lamp_surf_player2 = lamp_surf_player2.copy()
+#       for x in range(0, sub_lamp_surf_player1.get_width()):
+#         for y in range(0, sub_lamp_surf_player1.get_height()):
+#           sub_lamp_surf_player1.set_at((x,y), ColorSubtract(sub_lamp_surf_player1.get_at((x,y)), int(255*((20.0-levels[surfs])/20.0))))
+#           sub_lamp_surf_player2.set_at((x,y), ColorSubtract(sub_lamp_surf_player2.get_at((x,y)), int(255*((20.0-levels[surfs])/20.0))))
+#       lamp_surfs_player1.append(sub_lamp_surf_player1.convert())
+#       lamp_surfs_player2.append(sub_lamp_surf_player2.convert())
+#     return lamp_surfs_player1, lamp_surfs_player2
+
+
+def CreateElements():
+    background = Background()
+    help_frames = HelpFrames()
+    # help_frame_0 = HelpFrame0()
+    # help_frame_1 = HelpFrame1()
+    # help_frame_2 = HelpFrame2()
+    knob = Knob()
+    lamp_surfs_player1 = LampSurfs(COLOR1)
+    lamp_surfs_player2 = LampSurfs(COLOR2)    
+    return lamp_surfs_player1, lamp_surfs_player2, background, help_frames, knob
 
 def HUD(screen):
 
@@ -804,7 +963,7 @@ def HUD(screen):
 
 #%% Game Setup
 
-SetMonoColor(settings)
+SetColor(settings)
 
 spawn_player1_event = pygame.USEREVENT + 1
 spawn_player2_event = pygame.USEREVENT + 2
@@ -820,7 +979,7 @@ all_sprites.add(star)
 star_boundary = pygame.sprite.Group()
 star_boundary.add(star)
 
-lamp_surfs_player1, lamp_surfs_player2, background = CreateElements()
+lamp_surfs_player1, lamp_surfs_player2, background, help_frames, knob = CreateElements()
 
 fade_fill = pygame.Surface((WIDTH, HEIGHT)).convert()
 fade_fill.set_alpha(settings['fade_param'])
@@ -875,18 +1034,37 @@ while settings['mode'] == 'menu':
                     active_menu = menus[active_menu].parent
 ### Select
             if (event.key == pygame.K_UP) or (event.key == pygame.K_w):
-                menus[active_menu].menu_items[menus[active_menu].select].selected()
-#                print(active_menu)
-#                print(menus[active_menu].menu_items)
+                if len(menus[active_menu].menu_items) > 0:
+                    menus[active_menu].menu_items[menus[active_menu].select].selected()
+                    menus[active_menu].enter()
 ### Revert
-#            if (event.key == pygame.K_DOWN) or (event.key == pygame.K_s):
+            if (event.key == pygame.K_DOWN) or (event.key == pygame.K_s):
+                menus[active_menu].reset()
+                control_items = len(menus[active_menu].control_items)
+                for i in range(control_items):
+                    item = menus[active_menu].control_items[i]
+                    if item.control == 'sun_size':
+                        star.image = pygame.Surface((settings['sun_size']*2,settings['sun_size']*2), pygame.SRCALPHA)
+                        star.rect = star.image.get_rect()
+                        star.rect.centerx = star.locx
+                        star.rect.centery = star.locy
+                    if (item.control == 'mono_hue') or (item.control == 'mono_sat') or (item.control == 'mono_lum'):   
+                        SetColor(settings)
+                        font.fgcolor = MONO_COLOR
+                        knob = Knob()
+                        help_frames = HelpFrames()
+                        background = Background()
+                        pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
+                        fade_fill.blit(background, (0,0))
+                    if item.control == 'fade_param':
+                        fade_fill.set_alpha(settings['fade_param'])
+
+
 
         elif event.type == spawn_player1_event:
             all_sprites.add(player1)
         elif event.type == spawn_player2_event:
             all_sprites.add(player2)
-
-            
 
     if player1.alive():
         if (pygame.sprite.spritecollide(player1, bullets2, True)):
@@ -921,16 +1099,15 @@ while settings['mode'] == 'menu':
 
     HUD(screen)
 
-    # Read Control Knobs
+### Display Menu Items
     font.size = LABEL_SIZE*2
-    items = len(menus[active_menu].menu_items)
-    for i in range(items):
+    menu_items = len(menus[active_menu].menu_items)
+    for i in range(menu_items):
         item = menus[active_menu].menu_items[i]
         if menus[active_menu].select == i:
             font.fgcolor = MONO_COLOR
         else:
             font.fgcolor = DIM_COLOR
-
         if item.itemtype == 'menu':
             label_text = "{}".format(item.name)
         elif item.itemtype == 'options':
@@ -938,6 +1115,60 @@ while settings['mode'] == 'menu':
         label,label_rect = font.render(label_text)
         label.set_alpha()
         screen.blit(label, SubCoords((UI19_POS[0],UI19_POS[1]+(i*2.5*LABEL_SIZE)) , label_rect.center))
+
+### Display Control Items
+    font.fgcolor = MONO_COLOR
+    control_items = len(menus[active_menu].control_items)
+    for i in range(control_items):
+        item = menus[active_menu].control_items[i]
+        if(item.ReadControl()):
+            if item.control == 'sun_size':
+                star.image = pygame.Surface((settings['sun_size']*2,settings['sun_size']*2), pygame.SRCALPHA)
+                star.rect = star.image.get_rect()
+                star.rect.centerx = star.locx
+                star.rect.centery = star.locy
+            if (item.control == 'mono_hue') or (item.control == 'mono_sat') or (item.control == 'mono_lum'):   
+                SetColor(settings)
+                #                RGB = colorsys.hls_to_rgb(settings['mono_hue'], settings['mono_lum'], settings['mono_sat'])    
+#                MONO_COLOR = (RGB[0]*255, RGB[1]*255, RGB[2]*255) 
+                font.fgcolor = MONO_COLOR
+                knob = Knob()
+                help_frames = HelpFrames()
+                background = Background()
+                pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
+                fade_fill.blit(background, (0,0))
+            if (item.control == 'p1_hue') or (item.control == 'p1_sat') or (item.control == 'p1_lum'):   
+                SetColor(settings)
+                lamp_surfs_player1 = LampSurfs(COLOR1)
+            if item.control == 'fade_param':
+                fade_fill.set_alpha(settings['fade_param'])
+
+        label_text = "{}".format(item.control.upper())
+        font.size = LABEL_SIZE*1.2
+        label,label_rect = font.render(label_text)
+        label.set_alpha()
+        screen.blit(label, SubCoords(control_label_pos[i] , label_rect.center))
+        control_rot = 140 - (280*item.channel.value/65535)
+        control_knob = pygame.transform.rotate(knob,control_rot)
+        screen.blit(control_knob, SubCoords((control_label_pos[i][0], control_label_pos[i][1]-60), control_knob.get_rect().center))
+        value_text = "{:.1f}".format(settings[item.control])
+        font.size = LABEL_SIZE*2
+        label,label_rect = font.render(value_text)
+        label.set_alpha()
+        screen.blit(label, SubCoords((control_label_pos[i][0], control_label_pos[i][1]+50), label_rect.center))
+
+#            label_text = "{} = {:.1f}".format(c.control, settings[c.control]).upper()
+    
+
+### Help GFX
+    screen.blit(help_frames[menus[active_menu].help_gfx], SubCoords((UI19_POS[0],UI19_POS[1]+(WIDTH/3)) , help_frames[menus[active_menu].help_gfx].get_rect().center))
+    # if menus[active_menu].help_gfx == 0:
+    #     screen.blit(help_frame_0, SubCoords((UI19_POS[0],UI19_POS[1]+(WIDTH/3)) , help_frame_0.get_rect().center))
+    # elif menus[active_menu].help_gfx == 1:
+    #     screen.blit(help_frame_1, SubCoords((UI19_POS[0],UI19_POS[1]+(WIDTH/3)) , help_frame_1.get_rect().center))
+    # elif menus[active_menu].help_gfx == 2:
+    #     screen.blit(help_frame_2, SubCoords((UI19_POS[0],UI19_POS[1]+(WIDTH/3)) , help_frame_2.get_rect().center))
+
 
 # *after* drawing everything, flip the display
     pygame.display.flip()
