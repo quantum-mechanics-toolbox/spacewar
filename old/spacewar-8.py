@@ -1059,11 +1059,6 @@ while settings['mode'] == 'menu':
                         fade_fill.blit(background, (0,0))
                     if item.control == 'fade_param':
                         fade_fill.set_alpha(settings['fade_param'])
-                    if (item.control == 'p1_hue') or (item.control == 'p1_sat') or (item.control == 'p1_lum'):   
-                        SetColor(settings)
-                    if (item.control == 'p2_hue') or (item.control == 'p2_sat') or (item.control == 'p2_lum'):   
-                        SetColor(settings)
-
 
 
 
@@ -1127,7 +1122,6 @@ while settings['mode'] == 'menu':
     control_items = len(menus[active_menu].control_items)
     for i in range(control_items):
         item = menus[active_menu].control_items[i]
-        font.fgcolor = MONO_COLOR
         if(item.ReadControl()):
             if item.control == 'sun_size':
                 star.image = pygame.Surface((settings['sun_size']*2,settings['sun_size']*2), pygame.SRCALPHA)
@@ -1146,16 +1140,10 @@ while settings['mode'] == 'menu':
                 fade_fill.blit(background, (0,0))
             if (item.control == 'p1_hue') or (item.control == 'p1_sat') or (item.control == 'p1_lum'):   
                 SetColor(settings)
-            if (item.control == 'p2_hue') or (item.control == 'p2_sat') or (item.control == 'p2_lum'):   
-                SetColor(settings)
-#                lamp_surfs_player1 = LampSurfs(COLOR1)
+                lamp_surfs_player1 = LampSurfs(COLOR1)
             if item.control == 'fade_param':
                 fade_fill.set_alpha(settings['fade_param'])
-        
-        if (item.control == 'p1_hue') or (item.control == 'p1_sat') or (item.control == 'p1_lum'):   
-            font.fgcolor = COLOR1
-        if (item.control == 'p2_hue') or (item.control == 'p2_sat') or (item.control == 'p2_lum'):   
-            font.fgcolor = COLOR2
+
         label_text = "{}".format(item.control.upper())
         font.size = LABEL_SIZE*1.1
         label,label_rect = font.render(label_text)
