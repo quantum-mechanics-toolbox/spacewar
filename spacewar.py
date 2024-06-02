@@ -447,6 +447,7 @@ class Player(pygame.sprite.Sprite):
         self.playernum = playernum
         if playernum == 1: self.color = COLOR1
         elif playernum == 2: self.color = COLOR2
+        self.shiptype = shiptype
         self.DrawType(shiptype)
         self.image_orig.set_colorkey(BLACK)
         self.image_orig = pygame.transform.scale(self.image_orig, (30,30))
@@ -1101,6 +1102,11 @@ while settings['mode'] == 'menu':
                         pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
                         fade_fill.blit(background, (0,0))
                         fade_fill.set_alpha(settings['fade_param'])
+                        player1.color = COLOR1
+                        player1.DrawType(player1.shiptype)
+                        player2.color = COLOR2
+                        player2.DrawType(player2.shiptype)
+
 #                        print(settings['game'])                           
                     menus[active_menu].enter()
 ### Revert
@@ -1126,8 +1132,12 @@ while settings['mode'] == 'menu':
                         fade_fill.set_alpha(settings['fade_param'])
                     if (item.control == 'p1_hue') or (item.control == 'p1_sat') or (item.control == 'p1_lum'):   
                         SetColor(settings)
+                        player1.color = COLOR1
+                        player1.DrawType(player1.shiptype)
                     if (item.control == 'p2_hue') or (item.control == 'p2_sat') or (item.control == 'p2_lum'):   
                         SetColor(settings)
+                        player2.color = COLOR2
+                        player2.DrawType(player2.shiptype)
 
 
 
@@ -1213,8 +1223,12 @@ while settings['mode'] == 'menu':
                 fade_fill.blit(background, (0,0))
             if (item.control == 'p1_hue') or (item.control == 'p1_sat') or (item.control == 'p1_lum'):   
                 SetColor(settings)
+                player1.color = COLOR1
+                player1.DrawType(player1.shiptype)
             if (item.control == 'p2_hue') or (item.control == 'p2_sat') or (item.control == 'p2_lum'):   
                 SetColor(settings)
+                player2.color = COLOR2
+                player2.DrawType(player2.shiptype)
 #                lamp_surfs_player1 = LampSurfs(COLOR1)
             if item.control == 'fade_param':
                 fade_fill.set_alpha(settings['fade_param'])
