@@ -147,24 +147,7 @@ settings = {"mode": "menu",
             "p2_sat": 1.0
             }
 
-settings_1962 = settings.copy()
-settings_2024 = settings.copy()
-settings_2024['game'] = "2024"
 
-def swap_settings(game):
-    global settings, settings_1962, settings_2024        
-    keylist = settings.keys()
-    if game == '1962':
-        for k in keylist:
-            settings_2024[k] = settings[k]
-            settings[k] = settings_1962[k]
-        settings['game'] = '1962'
-    if game == '2024':
-        for k in keylist:
-            settings_1962[k] = settings[k]
-            settings[k] = settings_2024[k]
-        settings['game'] = '2024'
-        
 
 # initialize pygame and create window
 random.seed()
@@ -298,13 +281,12 @@ class menu():
             self.settings[key] = self.settings_hold[key] 
         
 class menu_item():
-    def __init__(self, name, itemtype, parent, game="1962", key="", contents = []):
+    def __init__(self, name, itemtype, parent, key="", contents = []):
         self.name = name
         self.itemtype = itemtype
         self.contents = contents
         self.select = 0
         self.key = key
-        self.game = game
        
     def selected(self):
         global active_menu, settings
@@ -320,10 +302,10 @@ active_menu = ""
 menus = {}
 
 main_menu = menu("main_menu", "", settings, 0)
-game_menu_item = menu_item("game_version", "options", "main_menu", "1962", "game", ['1962','2024'])
+game_menu_item = menu_item("game_version", "options", "main_menu", "game", ['1962','2024'])
 #game_menu_item.contents = ['1962', '2024']
 main_menu.menu_items.append(game_menu_item)
-system_menu_item = menu_item("system", "menu", "main_menu", "2024")
+system_menu_item = menu_item("system", "menu", "main_menu")
 main_menu.menu_items.append(system_menu_item)
 display_menu_item = menu_item("display", "menu", "main_menu")
 main_menu.menu_items.append(display_menu_item)
@@ -343,7 +325,7 @@ system_menu.control_items = [control_gravity,
 display_menu = menu("display", "main_menu", settings, 1)
 system_color_menu_item = menu_item("system_display", "menu", "display")
 display_menu.menu_items.append(system_color_menu_item)
-player_color_menu_item = menu_item("player_display", "menu", "display", "2024")
+player_color_menu_item = menu_item("player_display", "menu", "display")
 display_menu.menu_items.append(player_color_menu_item)
 
 system_color_menu = menu("system_display", "display", settings, 2)
@@ -1053,25 +1035,11 @@ while settings['mode'] == 'menu':
                 menus[active_menu].select -= 1
                 if menus[active_menu].select < 0:
                     menus[active_menu].select = len(menus[active_menu].menu_items)-1
-                if settings['game'] == '1962':
-                    print(menus[active_menu].select)
-                    while menus[active_menu].menu_items[menus[active_menu].select].game == '2024':
-                        menus[active_menu].select -= 1
-                        print(menus[active_menu].select)
-                        if menus[active_menu].select < 0:
-                            menus[active_menu].select = len(menus[active_menu].menu_items)-1                        
 ### Down
             if (event.key == pygame.K_RIGHT) or (event.key == pygame.K_d):
                 menus[active_menu].select += 1
                 if menus[active_menu].select >= len(menus[active_menu].menu_items):
                     menus[active_menu].select = 0
-                if settings['game'] == '1962':
-                    print(menus[active_menu].select)
-                    while menus[active_menu].menu_items[menus[active_menu].select].game == '2024':
-                        menus[active_menu].select += 1
-                        print(menus[active_menu].select)
-                        if menus[active_menu].select >= len(menus[active_menu].menu_items):
-                            menus[active_menu].select = 0
 ### Back
             if (event.key == pygame.K_RSHIFT) or (event.key == pygame.K_c) or (event.key == pygame.K_f):
 #                print("{} Parent: {}".format(active_menu, menus[active_menu].parent))
@@ -1081,27 +1049,7 @@ while settings['mode'] == 'menu':
 ### Select
             if (event.key == pygame.K_UP) or (event.key == pygame.K_w):
                 if len(menus[active_menu].menu_items) > 0:
-#                    menus[active_menu].menu_items[menus[active_menu].select].selected()
-                    item = menus[active_menu].menu_items[menus[active_menu].select]
-                    item.selected()
-                    if item.key == "game":
-                        if settings['game'] == '1962':
-                            swap_settings('1962')
-                        if settings['game'] == '2024': 
-                            swap_settings('2024')
-                        star.image = pygame.Surface((settings['sun_size']*2,settings['sun_size']*2), pygame.SRCALPHA)
-                        star.rect = star.image.get_rect()
-                        star.rect.centerx = star.locx
-                        star.rect.centery = star.locy
-                        SetColor(settings)
-                        font.fgcolor = MONO_COLOR
-                        knob = Knob()
-                        help_frames = HelpFrames()
-                        background = Background()
-                        pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
-                        fade_fill.blit(background, (0,0))
-                        fade_fill.set_alpha(settings['fade_param'])
-#                        print(settings['game'])                           
+                    menus[active_menu].menu_items[menus[active_menu].select].selected()
                     menus[active_menu].enter()
 ### Revert
             if (event.key == pygame.K_DOWN) or (event.key == pygame.K_s):
@@ -1179,8 +1127,6 @@ while settings['mode'] == 'menu':
             font.fgcolor = MONO_COLOR
         else:
             font.fgcolor = DIM_COLOR
-        if settings['game'] == '1962' and item.game == '2024':
-            font.fgcolor = OFF_COLOR            
         if item.itemtype == 'menu':
             label_text = "{}".format(item.name)
         elif item.itemtype == 'options':
