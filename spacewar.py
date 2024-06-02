@@ -7,6 +7,7 @@ import random
 import math
 import os
 import time
+import RPi.GPIO as GPIO
 import board
 import digitalio
 import busio
@@ -15,6 +16,13 @@ from adafruit_mcp3xxx.analog_in import AnalogIn
 import colorsys
 
 #%% Hardware Setup
+
+# Setup IO pins
+Switch1 = 17 
+Switch2 = 27 
+                                       
+GPIO.setup(Switch1, GPIO.IN)
+GPIO.setup(Switch2, GPIO.IN)
 
 # Try to create a Digital input
 pin = digitalio.DigitalInOut(board.D4)
@@ -70,6 +78,7 @@ FADE = True
 FRAGMENTS = 50
 
 SCORE = [0,0]
+READY = [1,1]
 
 FULL_SCREEN = False
 SHOW_LABELS = False
@@ -132,7 +141,7 @@ settings = {"mode": "menu",
             "gravity": 80, #80
             "sun_size": 50, #50
             "bullet_cool": 1.0, #1.0
-            "hyper_cool": 0.1, #10.0
+            "hyper_cool": 10.0, #10.0
             "bullet_speed": 2.0,
             "frag_decay": 50, #50
             "fade_param": 8,
@@ -192,6 +201,22 @@ template = pygame.image.load("references/Lens_Template.png")
 template = pygame.transform.scale(template, (WIDTH, HEIGHT))
 
 #%% Control Setup
+
+def ReadReadySwitches():
+    global READY, SCORE
+    val1 = GPIO.input(Switch1)
+    val2 = GPIO.input(Switch2)
+    if val1 == 0 and READY[0] == 1:
+        print('Player 1 Launch!')
+    if val2 == 0 and READY[1] == 1:
+        print('Player 2 Launch!')
+    if val1 == 0 or val2 == 0:
+        settings['mode'] = 'game'
+    else:
+        settings['mode'] = 'menu'
+    READY = [val1, val2]
+    SCORE = [0,0]
+        
 
 class control():
     def __init__(self, channel, scale, control, minval, maxval, settings):
@@ -394,10 +419,10 @@ def CoordsToAngle(MagX, MagY):
     if MagX>0 and MagY<0:
         theta += 360.0
     mag = VectMag((MagX, MagY))
-    print("{:1f}\t{:1f}\t{:1f}\t{:1f}".format(MagX, MagY, theta, mag))
+#    print("{:1f}\t{:1f}\t{:1f}\t{:1f}".format(MagX, MagY, theta, mag))
     return theta, mag
 
-def SetColor():
+def RandColor():
     r_chan = ran(255)
     g_chan = ran(255)
     b_chan = ran(255)
@@ -470,6 +495,7 @@ class Player(pygame.sprite.Sprite):
         self.NewPos()
 
     def DrawType(self, ShipType):
+        self.image_orig = pygame.Surface((40, 40))
         if ShipType==1:
             pygame.draw.polygon(self.image_orig, (self.color[0]/4, self.color[1]/4,self.color[2]/4), ((20,0),(10,40),(30,40)))
             pygame.draw.polygon(self.image_orig, self.color, ((20,0),(10,36),(30,36)), 4)
@@ -483,6 +509,9 @@ class Player(pygame.sprite.Sprite):
             pygame.draw.polygon(self.image_orig, self.color, ((20,10),(0,30),(0,36),(36,36),(36,30)), 4)
             pygame.draw.polygon(self.image_orig, (self.color[0]/4, self.color[1]/4,self.color[2]/4), ((25,0),(15,0),(15,40),(25,40)))
             pygame.draw.polygon(self.image_orig, self.color, ((25,0),(15,0),(15,36),(25,36)), 4)
+        self.image_orig.set_colorkey(BLACK)
+        self.image_orig = pygame.transform.scale(self.image_orig, (30,30))
+
 
     def NewPos(self):
 #        self.locx = (WIDTH/2) - (random.randrange(RADIUS) - (RADIUS/2))
@@ -697,6 +726,13 @@ def SetColor(settings):
     MONO_COLOR = (RGB[0]*255, RGB[1]*255, RGB[2]*255) 
     DIM_COLOR = ColorMult(MONO_COLOR, 0.5)
     OFF_COLOR = ColorMult(MONO_COLOR, 0.25)
+    if settings['game'] == '1962':
+        settings['p1_hue'] = settings['mono_hue']
+        settings['p2_hue'] = settings['mono_hue']
+        settings['p1_lum'] = settings['mono_lum']
+        settings['p2_lum'] = settings['mono_lum']
+        settings['p1_sat'] = settings['mono_sat']
+        settings['p2_sat'] = settings['mono_sat']        
     RGB = colorsys.hls_to_rgb(settings['p1_hue'], settings['p1_lum'], settings['p1_sat'])    
     COLOR1 = (RGB[0]*255, RGB[1]*255, RGB[2]*255) 
     RGB = colorsys.hls_to_rgb(settings['p2_hue'], settings['p2_lum'], settings['p2_sat'])    
@@ -750,11 +786,15 @@ class Star(pygame.sprite.Sprite):
 #        self.image.fill((0,0,0))
 #        pygame.draw.circle(self.image, (0,0,0,1), (STAR_SIZE,STAR_SIZE), STAR_SIZE)
         pygame.draw.circle(self.image, (0,0,0,1), (settings['sun_size'],settings['sun_size']), settings['sun_size'])
-        if pygame.time.get_ticks()%2 == 0:
-#          pygame.draw.circle(self.image, MONO_COLOR, (STAR_SIZE,STAR_SIZE), random.random()*STAR_SIZE, 1)
-#          pygame.draw.circle(self.image, MONO_COLOR, (settings['sun_size'],settings['sun_size']), random.random()*settings['sun_size'], 1)
-          pygame.draw.circle(self.image, MONO_COLOR, (settings['sun_size'],settings['sun_size']), random.random()*settings['sun_size'], int(settings['sun_size']/50))
-#          pygame.draw.circle(self.image, MONO_COLOR, (settings['sun_size'],settings['sun_size']), random.random()*settings['sun_size'], int(settings['sun_size']*settings['sun_size']/50/50))
+#         if pygame.time.get_ticks()%2 == 0:
+# #          pygame.draw.circle(self.image, MONO_COLOR, (STAR_SIZE,STAR_SIZE), random.random()*STAR_SIZE, 1)
+# #          pygame.draw.circle(self.image, MONO_COLOR, (settings['sun_size'],settings['sun_size']), random.random()*settings['sun_size'], 1)
+#           pygame.draw.circle(self.image, MONO_COLOR, (settings['sun_size'],settings['sun_size']), random.random()*settings['sun_size'], int(settings['sun_size']/50))
+# #          pygame.draw.circle(self.image, MONO_COLOR, (settings['sun_size'],settings['sun_size']), random.random()*settings['sun_size'], int(settings['sun_size']*settings['sun_size']/50/50))
+        modulo = int(8/settings['fade_param']) + 1
+#        print(modulo)
+        if pygame.time.get_ticks()%modulo == 0:
+          pygame.draw.circle(self.image, MONO_COLOR, (settings['sun_size'],settings['sun_size']), ((random.random()*0.3)+0.7)*settings['sun_size'])
 
 def HelpFrames():
 #    help_frame = pygame.Surface((WIDTH/2, HEIGHT/6), pygame.SRCALPHA)
@@ -822,9 +862,11 @@ def Knob():
     pygame.draw.rect(knob, MONO_COLOR, (19,0,3,15), 3)
     return knob
 
-def LampSurfs(color):    
+def LampSurf(color):    
     lamp_surf = pygame.image.load("./gfx/lamp.png")
     lamp_surf = lamp_surf.convert_alpha()
+    lamp_surf.set_alpha()
+
     lamp_surf = pygame.transform.scale(lamp_surf, (LAMP_SIZE, LAMP_SIZE))
 
 ### Player Lamp
@@ -833,18 +875,18 @@ def LampSurfs(color):
       for y in range(0, lamp_surf.get_height()):
         lamp_surf_player.set_at((x,y), ColorTint(lamp_surf.get_at((x,y)), color))
 
-    levels = []
-    for i in range(20):
-      levels.append(int(20*i/19))
-    levels[18] = levels[17]
-    lamp_surfs_player = []
-    for surfs in range(20):
-      sub_lamp_surf_player = lamp_surf_player.copy()
-      for x in range(0, sub_lamp_surf_player.get_width()):
-        for y in range(0, sub_lamp_surf_player.get_height()):
-          sub_lamp_surf_player.set_at((x,y), ColorSubtract(sub_lamp_surf_player.get_at((x,y)), int(255*((20.0-levels[surfs])/20.0))))
-      lamp_surfs_player.append(sub_lamp_surf_player.convert())
-    return lamp_surfs_player
+    # levels = []
+    # for i in range(20):
+    #   levels.append(int(20*i/19))
+    # levels[18] = levels[17]
+    # lamp_surfs_player = []
+    # for surfs in range(20):
+    #   sub_lamp_surf_player = lamp_surf_player.copy()
+    #   for x in range(0, sub_lamp_surf_player.get_width()):
+    #     for y in range(0, sub_lamp_surf_player.get_height()):
+    #       sub_lamp_surf_player.set_at((x,y), ColorSubtract(sub_lamp_surf_player.get_at((x,y)), int(255*((20.0-levels[surfs])/20.0))))
+    #   lamp_surfs_player.append(sub_lamp_surf_player.convert())
+    return lamp_surf_player
 
 # def LampSurfsPlayer2():    
 #     lamp_surf = pygame.image.load("./gfx/lamp.png")
@@ -885,9 +927,11 @@ def CreateElements():
     # help_frame_1 = HelpFrame1()
     # help_frame_2 = HelpFrame2()
     knob = Knob()
-    lamp_surfs_player1 = LampSurfs(COLOR1)
-    lamp_surfs_player2 = LampSurfs(COLOR2)    
-    return lamp_surfs_player1, lamp_surfs_player2, background, help_frames, knob
+    lamp_surf_player1 = LampSurf(COLOR1)
+    lamp_surf_player2 = LampSurf(COLOR2)
+    lamp_surf_black = lamp_surf_player1.copy()    
+    lamp_surf_black.fill((0,0,0))    
+    return lamp_surf_player1, lamp_surf_player2, lamp_surf_black, background, help_frames, knob
 
 def HUD(screen):
 
@@ -906,23 +950,36 @@ def HUD(screen):
 
     hyper_lamp_scale_1 = float(time.time() - LastHyperTime1)/settings['hyper_cool']
     if hyper_lamp_scale_1>1.0: hyper_lamp_scale_1 = 1.0
-    index = int(19*hyper_lamp_scale_1)
-    screen.blit(lamp_surfs_player1[index], SubCoords(UI2_POS, lamp_surfs_player1[index].get_rect().center))
+#    index = int(19*hyper_lamp_scale_1)+
+    screen.blit(lamp_surf_black, SubCoords(UI2_POS, lamp_surf_player1.get_rect().center))
+    alpha = int(255*hyper_lamp_scale_1)
+    lamp_surf_player1.set_alpha(alpha)
+#    screen.blit(lamp_surfs_player1[index], SubCoords(UI2_POS, lamp_surfs_player1[index].get_rect().center))
+    screen.blit(lamp_surf_player1, SubCoords(UI2_POS, lamp_surf_player1.get_rect().center))
 
     bullet_lamp_scale_1 = float(time.time() - LastBulletTime1)/settings['bullet_cool']
     if bullet_lamp_scale_1>1.0: bullet_lamp_scale_1 = 1.0
-    index = int(19*bullet_lamp_scale_1)
-    screen.blit(lamp_surfs_player1[index], SubCoords(UI3_POS, lamp_surfs_player1[index].get_rect().center))
+#    index = int(cz19*bullet_lamp_scale_1)
+    screen.blit(lamp_surf_black, SubCoords(UI3_POS, lamp_surf_player1.get_rect().center))
+    alpha = int(255*bullet_lamp_scale_1)
+    lamp_surf_player1.set_alpha(alpha)
+    screen.blit(lamp_surf_player1, SubCoords(UI3_POS, lamp_surf_player1.get_rect().center))
 
     hyper_lamp_scale_2 = float(time.time() - LastHyperTime2)/settings['hyper_cool']
     if hyper_lamp_scale_2>1.0: hyper_lamp_scale_2 = 1.0
-    index = int(19*hyper_lamp_scale_2)
-    screen.blit(lamp_surfs_player2[index], SubCoords(UI5_POS, lamp_surfs_player2[index].get_rect().center))
+#    index = int(19*hyper_lamp_scale_2)
+    screen.blit(lamp_surf_black, SubCoords(UI5_POS, lamp_surf_player1.get_rect().center))
+    alpha = int(255*hyper_lamp_scale_2)
+    lamp_surf_player2.set_alpha(alpha)
+    screen.blit(lamp_surf_player2, SubCoords(UI5_POS, lamp_surf_player2.get_rect().center))
 
     bullet_lamp_scale_2 = float(time.time() - LastBulletTime2)/settings['bullet_cool']
     if bullet_lamp_scale_2>1.0: bullet_lamp_scale_2 = 1.0
-    index = int(19*bullet_lamp_scale_2)
-    screen.blit(lamp_surfs_player2[index], SubCoords(UI6_POS, lamp_surfs_player2[index].get_rect().center))
+#    index = int(19*bullet_lamp_scale_2)
+    screen.blit(lamp_surf_black, SubCoords(UI6_POS, lamp_surf_player1.get_rect().center))
+    alpha = int(255*bullet_lamp_scale_2)
+    lamp_surf_player2.set_alpha(alpha)
+    screen.blit(lamp_surf_player2, SubCoords(UI6_POS, lamp_surf_player2.get_rect().center))
 
     font.size = LABEL_SIZE
 
@@ -1011,7 +1068,7 @@ all_sprites.add(star)
 star_boundary = pygame.sprite.Group()
 star_boundary.add(star)
 
-lamp_surfs_player1, lamp_surfs_player2, background, help_frames, knob = CreateElements()
+lamp_surf_player1, lamp_surf_player2, lamp_surf_black, background, help_frames, knob = CreateElements()
 
 fade_fill = pygame.Surface((WIDTH, HEIGHT)).convert()
 fade_fill.set_alpha(settings['fade_param'])
@@ -1037,322 +1094,348 @@ player2 = Player(2, 3)
 #all_sprites.add(player1)
 #all_sprites.add(player2)
 
-#%% Menu Loop
 
-
-while settings['mode'] == 'menu':
-    last_tick = clock.tick()
-    for event in pygame.event.get():
-        # check for closing window
-        if event.type == pygame.QUIT:
-            running = False
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                pygame.quit()
-### Up
-            if (event.key == pygame.K_LEFT) or (event.key == pygame.K_a):
-                menus[active_menu].select -= 1
-                if menus[active_menu].select < 0:
-                    menus[active_menu].select = len(menus[active_menu].menu_items)-1
-                if settings['game'] == '1962':
-                    print(menus[active_menu].select)
-                    while menus[active_menu].menu_items[menus[active_menu].select].game == '2024':
-                        menus[active_menu].select -= 1
-                        print(menus[active_menu].select)
-                        if menus[active_menu].select < 0:
-                            menus[active_menu].select = len(menus[active_menu].menu_items)-1                        
-### Down
-            if (event.key == pygame.K_RIGHT) or (event.key == pygame.K_d):
-                menus[active_menu].select += 1
-                if menus[active_menu].select >= len(menus[active_menu].menu_items):
-                    menus[active_menu].select = 0
-                if settings['game'] == '1962':
-                    print(menus[active_menu].select)
-                    while menus[active_menu].menu_items[menus[active_menu].select].game == '2024':
-                        menus[active_menu].select += 1
-                        print(menus[active_menu].select)
-                        if menus[active_menu].select >= len(menus[active_menu].menu_items):
-                            menus[active_menu].select = 0
-### Back
-            if (event.key == pygame.K_RSHIFT) or (event.key == pygame.K_c) or (event.key == pygame.K_f):
-#                print("{} Parent: {}".format(active_menu, menus[active_menu].parent))
-                if menus[active_menu].parent != "":
-                    menus[active_menu].exit_menu()
-                    active_menu = menus[active_menu].parent
-### Select
-            if (event.key == pygame.K_UP) or (event.key == pygame.K_w):
-                if len(menus[active_menu].menu_items) > 0:
-#                    menus[active_menu].menu_items[menus[active_menu].select].selected()
-                    item = menus[active_menu].menu_items[menus[active_menu].select]
-                    item.selected()
-                    if item.key == "game":
-                        if settings['game'] == '1962':
-                            swap_settings('1962')
-                        if settings['game'] == '2024': 
-                            swap_settings('2024')
-                        star.image = pygame.Surface((settings['sun_size']*2,settings['sun_size']*2), pygame.SRCALPHA)
-                        star.rect = star.image.get_rect()
-                        star.rect.centerx = star.locx
-                        star.rect.centery = star.locy
-                        SetColor(settings)
-                        font.fgcolor = MONO_COLOR
-                        knob = Knob()
-                        help_frames = HelpFrames()
-                        background = Background()
-                        pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
-                        fade_fill.blit(background, (0,0))
-                        fade_fill.set_alpha(settings['fade_param'])
-                        player1.color = COLOR1
-                        player1.DrawType(player1.shiptype)
-                        player2.color = COLOR2
-                        player2.DrawType(player2.shiptype)
-
-#                        print(settings['game'])                           
-                    menus[active_menu].enter()
-### Revert
-            if (event.key == pygame.K_DOWN) or (event.key == pygame.K_s):
-                menus[active_menu].reset()
-                control_items = len(menus[active_menu].control_items)
-                for i in range(control_items):
-                    item = menus[active_menu].control_items[i]
-                    if item.control == 'sun_size':
-                        star.image = pygame.Surface((settings['sun_size']*2,settings['sun_size']*2), pygame.SRCALPHA)
-                        star.rect = star.image.get_rect()
-                        star.rect.centerx = star.locx
-                        star.rect.centery = star.locy
-                    if (item.control == 'mono_hue') or (item.control == 'mono_sat') or (item.control == 'mono_lum'):   
-                        SetColor(settings)
-                        font.fgcolor = MONO_COLOR
-                        knob = Knob()
-                        help_frames = HelpFrames()
-                        background = Background()
-                        pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
-                        fade_fill.blit(background, (0,0))
-                    if item.control == 'fade_param':
-                        fade_fill.set_alpha(settings['fade_param'])
-                    if (item.control == 'p1_hue') or (item.control == 'p1_sat') or (item.control == 'p1_lum'):   
-                        SetColor(settings)
-                        player1.color = COLOR1
-                        player1.DrawType(player1.shiptype)
-                    if (item.control == 'p2_hue') or (item.control == 'p2_sat') or (item.control == 'p2_lum'):   
-                        SetColor(settings)
-                        player2.color = COLOR2
-                        player2.DrawType(player2.shiptype)
-
-
-
-
-        elif event.type == spawn_player1_event:
-            all_sprites.add(player1)
-        elif event.type == spawn_player2_event:
-            all_sprites.add(player2)
-
-    if player1.alive():
-        if (pygame.sprite.spritecollide(player1, bullets2, True)):
-            player1.Explode()
-            SCORE[1] += 1
-            pygame.time.set_timer(spawn_player1_event, 500, 1)
-        if (pygame.sprite.spritecollide(player1, star_boundary, False)):
-            player1.Explode()
-            #if SCORE[0] > 0:
-            #    SCORE[0] -= 1
-            pygame.time.set_timer(spawn_player1_event, 500, 1)
-    if player2.alive():
-        if (pygame.sprite.spritecollide(player2, bullets1, True)):
-            player2.Explode()
-            SCORE[0] += 1
-            pygame.time.set_timer(spawn_player2_event, 500, 1)
-        if (pygame.sprite.spritecollide(player2, star_boundary, False)):
-            player2.Explode()
-            #if SCORE[1] > 0:
-            #    SCORE[1] -= 1
-            pygame.time.set_timer(spawn_player2_event, 500, 1)
-
-
-    # Update
-    all_sprites.update()
-
-    # Draw / render
-    if (FADE): screen.blit(fade_fill, (0,0))
-    else: screen.fill(BLACK)
-
-    all_sprites.draw(screen)
-
-    HUD(screen)
-
-### Display Menu Items
-    font.size = LABEL_SIZE*2
-    menu_items = len(menus[active_menu].menu_items)
-    for i in range(menu_items):
-        item = menus[active_menu].menu_items[i]
-        if menus[active_menu].select == i:
-            font.fgcolor = MONO_COLOR
-        else:
-            font.fgcolor = DIM_COLOR
-        if settings['game'] == '1962' and item.game == '2024':
-            font.fgcolor = OFF_COLOR            
-        if item.itemtype == 'menu':
-            label_text = "{}".format(item.name)
-        elif item.itemtype == 'options':
-            label_text = "{}: {}".format(item.name, item.contents[item.select])
-        label,label_rect = font.render(label_text)
-        label.set_alpha()
-        screen.blit(label, SubCoords((UI19_POS[0],UI19_POS[1]+(i*2.5*LABEL_SIZE)) , label_rect.center))
-
-### Display Control Items
-    font.fgcolor = MONO_COLOR
-    control_items = len(menus[active_menu].control_items)
-    for i in range(control_items):
-        item = menus[active_menu].control_items[i]
-        font.fgcolor = MONO_COLOR
-        if(item.ReadControl()):
-            if item.control == 'sun_size':
-                star.image = pygame.Surface((settings['sun_size']*2,settings['sun_size']*2), pygame.SRCALPHA)
-                star.rect = star.image.get_rect()
-                star.rect.centerx = star.locx
-                star.rect.centery = star.locy
-            if (item.control == 'mono_hue') or (item.control == 'mono_sat') or (item.control == 'mono_lum'):   
-                SetColor(settings)
-                #                RGB = colorsys.hls_to_rgb(settings['mono_hue'], settings['mono_lum'], settings['mono_sat'])    
-#                MONO_COLOR = (RGB[0]*255, RGB[1]*255, RGB[2]*255) 
-                font.fgcolor = MONO_COLOR
-                knob = Knob()
-                help_frames = HelpFrames()
-                background = Background()
-                pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
-                fade_fill.blit(background, (0,0))
-            if (item.control == 'p1_hue') or (item.control == 'p1_sat') or (item.control == 'p1_lum'):   
-                SetColor(settings)
-                player1.color = COLOR1
-                player1.DrawType(player1.shiptype)
-            if (item.control == 'p2_hue') or (item.control == 'p2_sat') or (item.control == 'p2_lum'):   
-                SetColor(settings)
-                player2.color = COLOR2
-                player2.DrawType(player2.shiptype)
-#                lamp_surfs_player1 = LampSurfs(COLOR1)
-            if item.control == 'fade_param':
-                fade_fill.set_alpha(settings['fade_param'])
-        
-        if (item.control == 'p1_hue') or (item.control == 'p1_sat') or (item.control == 'p1_lum'):   
-            font.fgcolor = COLOR1
-        if (item.control == 'p2_hue') or (item.control == 'p2_sat') or (item.control == 'p2_lum'):   
-            font.fgcolor = COLOR2
-        label_text = "{}".format(item.control.upper())
-        font.size = LABEL_SIZE*1.1
-        label,label_rect = font.render(label_text)
-        label.set_alpha()
-        screen.blit(label, SubCoords(control_label_pos[i] , label_rect.center))
-        control_rot = 140 - (280*item.channel.value/65535)
-        control_knob = pygame.transform.rotate(knob,control_rot)
-        screen.blit(control_knob, SubCoords((control_label_pos[i][0], control_label_pos[i][1]-60), control_knob.get_rect().center))
-        value_text = "{:.1f}".format(settings[item.control])
-        font.size = LABEL_SIZE*2
-        label,label_rect = font.render(value_text)
-        label.set_alpha()
-        screen.blit(label, SubCoords((control_label_pos[i][0], control_label_pos[i][1]+50), label_rect.center))
-
-#            label_text = "{} = {:.1f}".format(c.control, settings[c.control]).upper()
-    
-
-### Help GFX
-    screen.blit(help_frames[menus[active_menu].help_gfx], SubCoords((UI19_POS[0],UI19_POS[1]+(WIDTH/3)) , help_frames[menus[active_menu].help_gfx].get_rect().center))
-    # if menus[active_menu].help_gfx == 0:
-    #     screen.blit(help_frame_0, SubCoords((UI19_POS[0],UI19_POS[1]+(WIDTH/3)) , help_frame_0.get_rect().center))
-    # elif menus[active_menu].help_gfx == 1:
-    #     screen.blit(help_frame_1, SubCoords((UI19_POS[0],UI19_POS[1]+(WIDTH/3)) , help_frame_1.get_rect().center))
-    # elif menus[active_menu].help_gfx == 2:
-    #     screen.blit(help_frame_2, SubCoords((UI19_POS[0],UI19_POS[1]+(WIDTH/3)) , help_frame_2.get_rect().center))
-
-
-# *after* drawing everything, flip the display
-    pygame.display.flip()
-    
-#%% Game Loop
-
-# Game loop
+# System loop
 running = True
 while running:
-    # keep loop running at the right speed
-#    last_tick = clock.tick(FPS)
-    last_tick = clock.tick()
-        # Process input (events)
-    for event in pygame.event.get():
-        # check for closing window
-        if event.type == pygame.QUIT:
-            running = False
-        elif event.type == spawn_player1_event:
-            all_sprites.add(player1)
-        elif event.type == spawn_player2_event:
-            all_sprites.add(player2)
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                pygame.quit()
-            if (event.key == pygame.K_RSHIFT) or (event.key == pygame.K_c):
-                if (time.time() > (LastBulletTime1 + settings['bullet_cool'])):
-                    player1.shoot()
-                    LastBulletTime1 = time.time()
-            if event.key == pygame.K_f:
-                if (time.time() > (LastBulletTime2 + settings['bullet_cool'])):
-                    player2.shoot()
-                    LastBulletTime2 = time.time()
-    if player1.alive():
-        if (pygame.sprite.spritecollide(player1, bullets2, True)):
-            player1.Explode()
-            SCORE[1] += 1
-            pygame.time.set_timer(spawn_player1_event, 500, 1)
-        if (pygame.sprite.spritecollide(player1, star_boundary, False)):
-            player1.Explode()
-            #if SCORE[0] > 0:
-            #    SCORE[0] -= 1
-            pygame.time.set_timer(spawn_player1_event, 500, 1)
-    if player2.alive():
-        if (pygame.sprite.spritecollide(player2, bullets1, True)):
-            player2.Explode()
-            SCORE[0] += 1
-            pygame.time.set_timer(spawn_player2_event, 500, 1)
-        if (pygame.sprite.spritecollide(player2, star_boundary, False)):
-            player2.Explode()
-            #if SCORE[1] > 0:
-            #    SCORE[1] -= 1
-            pygame.time.set_timer(spawn_player2_event, 500, 1)
 
-    # Update
-    all_sprites.update()
-
-    # Draw / render
-    if (FADE): screen.blit(fade_fill, (0,0))
-    else: screen.fill(BLACK)
-#    screen.blit(star, (CENTER[0]-STAR_SIZE, CENTER[1]-STAR_SIZE))
-#    screen.blit(background, (0,0))
-    all_sprites.draw(screen)
-
-    HUD(screen)
-
-    # Read Control Knobs
-    font.size = LABEL_SIZE
-    font.fgcolor = MONO_COLOR
-    for c in controls:
-        if (c.ReadControl()):
-#            label_text = "{} = {:.1f}".format(c.control, settings[c.control]).upper()
-            label_text = "{} = {:.1f}".format(c.control, settings[c.control])
+#%% Menu Loop
+    while settings['mode'] == 'menu':
+        ReadReadySwitches()
+    
+        last_tick = clock.tick()
+        for event in pygame.event.get():
+            # check for closing window
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+    ### Up
+                if (event.key == pygame.K_LEFT) or (event.key == pygame.K_a):
+                    menus[active_menu].select -= 1
+                    if menus[active_menu].select < 0:
+                        menus[active_menu].select = len(menus[active_menu].menu_items)-1
+                    if settings['game'] == '1962':
+                        print(menus[active_menu].select)
+                        while menus[active_menu].menu_items[menus[active_menu].select].game == '2024':
+                            menus[active_menu].select -= 1
+                            print(menus[active_menu].select)
+                            if menus[active_menu].select < 0:
+                                menus[active_menu].select = len(menus[active_menu].menu_items)-1                        
+    ### Down
+                if (event.key == pygame.K_RIGHT) or (event.key == pygame.K_d):
+                    menus[active_menu].select += 1
+                    if menus[active_menu].select >= len(menus[active_menu].menu_items):
+                        menus[active_menu].select = 0
+                    if settings['game'] == '1962':
+                        print(menus[active_menu].select)
+                        while menus[active_menu].menu_items[menus[active_menu].select].game == '2024':
+                            menus[active_menu].select += 1
+                            print(menus[active_menu].select)
+                            if menus[active_menu].select >= len(menus[active_menu].menu_items):
+                                menus[active_menu].select = 0
+    ### Back
+                if (event.key == pygame.K_RSHIFT) or (event.key == pygame.K_c) or (event.key == pygame.K_f):
+    #                print("{} Parent: {}".format(active_menu, menus[active_menu].parent))
+                    if menus[active_menu].parent != "":
+                        menus[active_menu].exit_menu()
+                        active_menu = menus[active_menu].parent
+    ### Select
+                if (event.key == pygame.K_UP) or (event.key == pygame.K_w):
+                    if len(menus[active_menu].menu_items) > 0:
+    #                    menus[active_menu].menu_items[menus[active_menu].select].selected()
+                        item = menus[active_menu].menu_items[menus[active_menu].select]
+                        item.selected()
+                        if item.key == "game":
+                            if settings['game'] == '1962':
+                                swap_settings('1962')
+                            if settings['game'] == '2024': 
+                                swap_settings('2024')
+                            star.image = pygame.Surface((settings['sun_size']*2,settings['sun_size']*2), pygame.SRCALPHA)
+                            star.rect = star.image.get_rect()
+                            star.rect.centerx = star.locx
+                            star.rect.centery = star.locy
+                            SetColor(settings)
+                            font.fgcolor = MONO_COLOR
+                            knob = Knob()
+                            help_frames = HelpFrames()
+                            background = Background()
+                            pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
+                            fade_fill.blit(background, (0,0))
+                            fade_fill.set_alpha(settings['fade_param'])
+                            player1.color = COLOR1
+                            player1.DrawType(player1.shiptype)
+                            lamp_surf_player1 = LampSurf(COLOR1)
+                            player2.color = COLOR2
+                            player2.DrawType(player2.shiptype)
+                            lamp_surf_player2 = LampSurf(COLOR2)
+    
+    
+    #                        print(settings['game'])                           
+                        menus[active_menu].enter()
+    ### Revert
+                if (event.key == pygame.K_DOWN) or (event.key == pygame.K_s):
+                    menus[active_menu].reset()
+                    control_items = len(menus[active_menu].control_items)
+                    for i in range(control_items):
+                        item = menus[active_menu].control_items[i]
+                        if item.control == 'sun_size':
+                            star.image = pygame.Surface((settings['sun_size']*2,settings['sun_size']*2), pygame.SRCALPHA)
+                            star.rect = star.image.get_rect()
+                            star.rect.centerx = star.locx
+                            star.rect.centery = star.locy
+                        if (item.control == 'mono_hue') or (item.control == 'mono_sat') or (item.control == 'mono_lum'):   
+                            SetColor(settings)
+                            font.fgcolor = MONO_COLOR
+                            knob = Knob()
+                            help_frames = HelpFrames()
+                            background = Background()
+                            pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
+                            fade_fill.blit(background, (0,0))
+                            if settings['game'] == '1962':
+                                player1.color = COLOR1
+                                player1.DrawType(player1.shiptype)
+                                lamp_surf_player1 = LampSurf(COLOR1)
+                                player2.color = COLOR2
+                                player2.DrawType(player2.shiptype)
+                                lamp_surf_player2 = LampSurf(COLOR2)                            
+                        if item.control == 'fade_param':
+                            fade_fill.set_alpha(settings['fade_param'])
+                        if (item.control == 'p1_hue') or (item.control == 'p1_sat') or (item.control == 'p1_lum'):   
+                            SetColor(settings)
+                            player1.color = COLOR1
+                            player1.DrawType(player1.shiptype)
+                            lamp_surf_player1 = LampSurf(COLOR1)
+                        if (item.control == 'p2_hue') or (item.control == 'p2_sat') or (item.control == 'p2_lum'):   
+                            SetColor(settings)
+                            player2.color = COLOR2
+                            player2.DrawType(player2.shiptype)
+                            lamp_surf_player2 = LampSurf(COLOR2)
+    
+    
+            elif event.type == spawn_player1_event:
+                all_sprites.add(player1)
+            elif event.type == spawn_player2_event:
+                all_sprites.add(player2)
+    
+        if player1.alive():
+            if (pygame.sprite.spritecollide(player1, bullets2, True)):
+                player1.Explode()
+                SCORE[1] += 1
+                pygame.time.set_timer(spawn_player1_event, 500, 1)
+            if (pygame.sprite.spritecollide(player1, star_boundary, False)):
+                player1.Explode()
+                #if SCORE[0] > 0:
+                #    SCORE[0] -= 1
+                pygame.time.set_timer(spawn_player1_event, 500, 1)
+        if player2.alive():
+            if (pygame.sprite.spritecollide(player2, bullets1, True)):
+                player2.Explode()
+                SCORE[0] += 1
+                pygame.time.set_timer(spawn_player2_event, 500, 1)
+            if (pygame.sprite.spritecollide(player2, star_boundary, False)):
+                player2.Explode()
+                #if SCORE[1] > 0:
+                #    SCORE[1] -= 1
+                pygame.time.set_timer(spawn_player2_event, 500, 1)
+    
+    
+        # Update
+        all_sprites.update()
+    
+        # Draw / render
+        if (FADE): screen.blit(fade_fill, (0,0))
+        else: screen.fill(BLACK)
+    
+        all_sprites.draw(screen)
+    
+        HUD(screen)
+    
+    ### Display Menu Items
+        font.size = LABEL_SIZE*2
+        menu_items = len(menus[active_menu].menu_items)
+        for i in range(menu_items):
+            item = menus[active_menu].menu_items[i]
+            if menus[active_menu].select == i:
+                font.fgcolor = MONO_COLOR
+            else:
+                font.fgcolor = DIM_COLOR
+            if settings['game'] == '1962' and item.game == '2024':
+                font.fgcolor = OFF_COLOR            
+            if item.itemtype == 'menu':
+                label_text = "{}".format(item.name)
+            elif item.itemtype == 'options':
+                label_text = "{}: {}".format(item.name, item.contents[item.select])
             label,label_rect = font.render(label_text)
             label.set_alpha()
-            screen.blit(label, SubCoords(UI19_POS, label_rect.center))
-            if c.control == 'sun_size':
-                star.image = pygame.Surface((settings['sun_size']*2,settings['sun_size']*2), pygame.SRCALPHA)
-                star.rect = star.image.get_rect()
-                star.rect.centerx = star.locx
-                star.rect.centery = star.locy
-            if (c.control == 'mono_hue') or (c.control == 'mono_sat') or (c.control == 'mono_lum'):   
-                RGB = colorsys.hls_to_rgb(settings['mono_hue'], settings['mono_lum'], settings['mono_sat'])    
-                MONO_COLOR = (RGB[0]*255, RGB[1]*255, RGB[2]*255) 
-                font.fgcolor = MONO_COLOR
-                background = Background()
-                pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
-                fade_fill.blit(background, (0,0))
-#                lamp_surfs_player1, lamp_surfs_player2, background = CreateElements()
-
+            screen.blit(label, SubCoords((UI19_POS[0],UI19_POS[1]+(i*2.5*LABEL_SIZE)) , label_rect.center))
+    
+    ### Display Control Items
+        font.fgcolor = MONO_COLOR
+        control_items = len(menus[active_menu].control_items)
+        for i in range(control_items):
+            item = menus[active_menu].control_items[i]
+            font.fgcolor = MONO_COLOR
+            if(item.ReadControl()):
+                if item.control == 'sun_size':
+                    star.image = pygame.Surface((settings['sun_size']*2,settings['sun_size']*2), pygame.SRCALPHA)
+                    star.rect = star.image.get_rect()
+                    star.rect.centerx = star.locx
+                    star.rect.centery = star.locy
+                if (item.control == 'mono_hue') or (item.control == 'mono_sat') or (item.control == 'mono_lum'):   
+                    SetColor(settings)
+                    #                RGB = colorsys.hls_to_rgb(settings['mono_hue'], settings['mono_lum'], settings['mono_sat'])    
+    #                MONO_COLOR = (RGB[0]*255, RGB[1]*255, RGB[2]*255) 
+                    font.fgcolor = MONO_COLOR
+                    knob = Knob()
+                    help_frames = HelpFrames()
+                    background = Background()
+                    pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
+                    fade_fill.blit(background, (0,0))
+                    if settings['game'] == '1962':
+                        print("foo + " + settings['game'])
+                        player1.color = COLOR1
+                        player1.DrawType(player1.shiptype)
+                        lamp_surf_player1 = LampSurf(COLOR1)
+                        player2.color = COLOR2
+                        player2.DrawType(player2.shiptype)
+                        lamp_surf_player2 = LampSurf(COLOR2)                            
+                if (item.control == 'p1_hue') or (item.control == 'p1_sat') or (item.control == 'p1_lum'):   
+                    SetColor(settings)
+                    player1.color = COLOR1
+                    player1.DrawType(player1.shiptype)
+                    lamp_surf_player1 = LampSurf(COLOR1)
+                if (item.control == 'p2_hue') or (item.control == 'p2_sat') or (item.control == 'p2_lum'):   
+                    SetColor(settings)
+                    player2.color = COLOR2
+                    player2.DrawType(player2.shiptype)
+                    lamp_surf_player2 = LampSurf(COLOR2)
+    #                lamp_surfs_player1 = LampSurfs(COLOR1)
+                if item.control == 'fade_param':
+                    fade_fill.set_alpha(settings['fade_param'])
+            
+            if (item.control == 'p1_hue') or (item.control == 'p1_sat') or (item.control == 'p1_lum'):   
+                font.fgcolor = COLOR1
+            if (item.control == 'p2_hue') or (item.control == 'p2_sat') or (item.control == 'p2_lum'):   
+                font.fgcolor = COLOR2
+            label_text = "{}".format(item.control.upper())
+            font.size = LABEL_SIZE*1.1
+            label,label_rect = font.render(label_text)
+            label.set_alpha()
+            screen.blit(label, SubCoords(control_label_pos[i] , label_rect.center))
+            control_rot = 140 - (280*item.channel.value/65535)
+            control_knob = pygame.transform.rotate(knob,control_rot)
+            screen.blit(control_knob, SubCoords((control_label_pos[i][0], control_label_pos[i][1]-60), control_knob.get_rect().center))
+            value_text = "{:.1f}".format(settings[item.control])
+            font.size = LABEL_SIZE*2
+            label,label_rect = font.render(value_text)
+            label.set_alpha()
+            screen.blit(label, SubCoords((control_label_pos[i][0], control_label_pos[i][1]+50), label_rect.center))
+    
+    #            label_text = "{} = {:.1f}".format(c.control, settings[c.control]).upper()
+        
+    
+    ### Help GFX
+        screen.blit(help_frames[menus[active_menu].help_gfx], SubCoords((UI19_POS[0],UI19_POS[1]+(WIDTH/3)) , help_frames[menus[active_menu].help_gfx].get_rect().center))
+        # if menus[active_menu].help_gfx == 0:
+        #     screen.blit(help_frame_0, SubCoords((UI19_POS[0],UI19_POS[1]+(WIDTH/3)) , help_frame_0.get_rect().center))
+        # elif menus[active_menu].help_gfx == 1:
+        #     screen.blit(help_frame_1, SubCoords((UI19_POS[0],UI19_POS[1]+(WIDTH/3)) , help_frame_1.get_rect().center))
+        # elif menus[active_menu].help_gfx == 2:
+        #     screen.blit(help_frame_2, SubCoords((UI19_POS[0],UI19_POS[1]+(WIDTH/3)) , help_frame_2.get_rect().center))
+    
+    
     # *after* drawing everything, flip the display
-    pygame.display.flip()
+        pygame.display.flip()
+        
+        
+#%% Game Loop
+            
+    while settings['mode'] == 'game':
+        ReadReadySwitches()
+        
+        # keep loop running at the right speed
+    #    last_tick = clock.tick(FPS)
+        last_tick = clock.tick()
+            # Process input (events)
+        for event in pygame.event.get():
+            # check for closing window
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == spawn_player1_event:
+                all_sprites.add(player1)
+            elif event.type == spawn_player2_event:
+                all_sprites.add(player2)
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                if (event.key == pygame.K_RSHIFT) or (event.key == pygame.K_c):
+                    if (time.time() > (LastBulletTime1 + settings['bullet_cool'])):
+                        player1.shoot()
+                        LastBulletTime1 = time.time()
+                if event.key == pygame.K_f:
+                    if (time.time() > (LastBulletTime2 + settings['bullet_cool'])):
+                        player2.shoot()
+                        LastBulletTime2 = time.time()
+        if player1.alive():
+            if (pygame.sprite.spritecollide(player1, bullets2, True)):
+                player1.Explode()
+                SCORE[1] += 1
+                pygame.time.set_timer(spawn_player1_event, 500, 1)
+            if (pygame.sprite.spritecollide(player1, star_boundary, False)):
+                player1.Explode()
+                #if SCORE[0] > 0:
+                #    SCORE[0] -= 1
+                pygame.time.set_timer(spawn_player1_event, 500, 1)
+        if player2.alive():
+            if (pygame.sprite.spritecollide(player2, bullets1, True)):
+                player2.Explode()
+                SCORE[0] += 1
+                pygame.time.set_timer(spawn_player2_event, 500, 1)
+            if (pygame.sprite.spritecollide(player2, star_boundary, False)):
+                player2.Explode()
+                #if SCORE[1] > 0:
+                #    SCORE[1] -= 1
+                pygame.time.set_timer(spawn_player2_event, 500, 1)
+    
+        # Update
+        all_sprites.update()
+    
+        # Draw / render
+        if (FADE): screen.blit(fade_fill, (0,0))
+        else: screen.fill(BLACK)
+    #    screen.blit(star, (CENTER[0]-STAR_SIZE, CENTER[1]-STAR_SIZE))
+    #    screen.blit(background, (0,0))
+        all_sprites.draw(screen)
+    
+        HUD(screen)
+    
+        # Read Control Knobs
+        font.size = LABEL_SIZE
+        font.fgcolor = MONO_COLOR
+        for c in controls:
+            if (c.ReadControl()):
+    #            label_text = "{} = {:.1f}".format(c.control, settings[c.control]).upper()
+                label_text = "{} = {:.1f}".format(c.control, settings[c.control])
+                label,label_rect = font.render(label_text)
+                label.set_alpha()
+                screen.blit(label, SubCoords(UI19_POS, label_rect.center))
+                if c.control == 'sun_size':
+                    star.image = pygame.Surface((settings['sun_size']*2,settings['sun_size']*2), pygame.SRCALPHA)
+                    star.rect = star.image.get_rect()
+                    star.rect.centerx = star.locx
+                    star.rect.centery = star.locy
+                if (c.control == 'mono_hue') or (c.control == 'mono_sat') or (c.control == 'mono_lum'):   
+                    RGB = colorsys.hls_to_rgb(settings['mono_hue'], settings['mono_lum'], settings['mono_sat'])    
+                    MONO_COLOR = (RGB[0]*255, RGB[1]*255, RGB[2]*255) 
+                    font.fgcolor = MONO_COLOR
+                    background = Background()
+                    pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
+                    fade_fill.blit(background, (0,0))
+    #                lamp_surfs_player1, lamp_surfs_player2, background = CreateElements()
+    
+        # *after* drawing everything, flip the display
+        pygame.display.flip()
 
 pygame.quit()
