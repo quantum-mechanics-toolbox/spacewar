@@ -7,13 +7,19 @@ import random
 import math
 import os
 import time
+# Color math
+import colorsys
+# Fractal Noise
+import noise
+import numpy as np
+# Hardware
 import RPi.GPIO as GPIO
 import board
 import digitalio
 import busio
 import adafruit_mcp3xxx.mcp3008 as MCP
 from adafruit_mcp3xxx.analog_in import AnalogIn
-import colorsys
+
 
 #%% Hardware Setup
 
@@ -81,7 +87,7 @@ SCORE = [0,0]
 READY = [1,1]
 
 FULL_SCREEN = False
-SHOW_LABELS = False
+SHOW_LABELS = True
 
 SCORE_SIZE = 60
 LABEL_SIZE = 20
@@ -145,6 +151,8 @@ settings = {"mode": "menu",
             "bullet_speed": 2.0,
             "frag_decay": 50, #50
             "fade_param": 8,
+            "stars": 60, #60
+            "galaxy": 0, #3600
             "mono_hue": 0.333,
             "mono_lum": 0.5,
             "mono_sat": 1.0,
@@ -159,6 +167,8 @@ settings = {"mode": "menu",
 settings_1962 = settings.copy()
 settings_2024 = settings.copy()
 settings_2024['game'] = "2024"
+settings_2024['galaxy'] = 3600
+
 
 def swap_settings(game):
     global settings, settings_1962, settings_2024        
@@ -201,23 +211,7 @@ template = pygame.image.load("references/Lens_Template.png")
 template = pygame.transform.scale(template, (WIDTH, HEIGHT))
 
 #%% Control Setup
-
-def ReadReadySwitches():
-    global READY, SCORE
-    val1 = GPIO.input(Switch1)
-    val2 = GPIO.input(Switch2)
-    if val1 == 0 and READY[0] == 1:
-        print('Player 1 Launch!')
-    if val2 == 0 and READY[1] == 1:
-        print('Player 2 Launch!')
-    if val1 == 0 or val2 == 0:
-        settings['mode'] = 'game'
-    else:
-        settings['mode'] = 'menu'
-    READY = [val1, val2]
-    SCORE = [0,0]
         
-
 class control():
     def __init__(self, channel, scale, control, minval, maxval, settings):
         if channel == 0:
@@ -275,6 +269,8 @@ control_mono_hue = control(0, 'LIN', 'mono_hue', 0.0, 1.0, settings)
 control_mono_sat = control(1, 'LIN', 'mono_sat', 0.0, 1.0, settings)
 control_mono_lum = control(2, 'LIN', 'mono_lum', 0.0, 1.0, settings)
 control_fade = control(3, 'LIN', 'fade_param', 1.0, 32.0, settings)
+control_stars = control(4, 'LIN', 'stars', 1.0, RADIUS, settings)
+control_galaxy = control(5, 'LIN', 'galaxy', 1.0, (RADIUS*RADIUS/8), settings)
 
 control_p_one_hue = control(0, 'LIN', 'p1_hue', 0.0, 1.0, settings)
 control_p_one_sat = control(1, 'LIN', 'p1_sat', 0.0, 1.0, settings)
@@ -294,6 +290,42 @@ controls.append(control_hyper_cool)
 #controls.append(control_mono_hue)
 #controls.append(control_mono_lum)
 #controls.append(control_mono_sat)
+
+def ReadReadySwitches():
+    global READY, SCORE
+    start_game = False
+    start_menu = False
+    val1 = GPIO.input(Switch1)
+    val2 = GPIO.input(Switch2)
+    if val1 == 0 and READY[0] == 1:
+        print('Player 1 Launch!')
+        SCORE = [0,0]
+    if val2 == 0 and READY[1] == 1:
+        print('Player 2 Launch!')
+        SCORE = [0,0]
+    if (val1 == 0 or val2 == 0) and settings['mode'] == 'menu':
+        start_game = True
+    if val1 == 1 and val2 == 1 and settings['mode'] == 'game':
+        start_menu = True
+#    if val1 == 0 or val2 == 0:
+#        settings['mode'] = 'game'
+#    else:
+#        settings['mode'] = 'menu'
+    if start_game:
+        settings['mode'] = 'game'
+        for control in menus[active_menu].control_items:
+            control.Activate(False)
+        for control in controls:
+            control.Activate(True)
+    elif start_menu:
+        settings['mode'] = 'menu'
+        for control in menus[active_menu].control_items:
+            control.Activate(True)
+        for control in controls:
+            control.Activate(False)
+
+    READY = [val1, val2]
+
 
 #%% Menu Setup
 
@@ -375,7 +407,9 @@ system_color_menu = menu("system_display", "display", settings, 2)
 system_color_menu.control_items = [control_mono_hue,
                                  control_mono_sat,
                                  control_mono_lum,
-                                 control_fade]
+                                 control_fade,
+                                 control_stars,
+                                 control_galaxy]
 
 player_color_menu = menu("player_display", "display", settings, 2)
 player_color_menu.control_items = [control_p_one_hue,
@@ -738,33 +772,103 @@ def SetColor(settings):
     RGB = colorsys.hls_to_rgb(settings['p2_hue'], settings['p2_lum'], settings['p2_sat'])    
     COLOR2 = (RGB[0]*255, RGB[1]*255, RGB[2]*255) 
 
+def FractalNoiseMap():
+#    shape = (1024,1024)
+    shape = (RADIUS*2,RADIUS*2)
+    scale = .5
+    octaves = 6
+    persistence = 0.5
+    lacunarity = 2.0
+    seed = np.random.randint(0,100)
+
+    world = np.zeros(shape)
+
+    # make coordinate grid on [0,1]^2
+    x_idx = np.linspace(0, 1, shape[0])
+    y_idx = np.linspace(0, 1, shape[1])
+    world_x, world_y = np.meshgrid(x_idx, y_idx)
+
+    # apply perlin noise, instead of np.vectorize, consider using itertools.starmap()
+    world = np.vectorize(noise.pnoise2)(world_x/scale,
+                            world_y/scale,
+                            octaves=octaves,
+                            persistence=persistence,
+                            lacunarity=lacunarity,
+                            repeatx=1024,
+                            repeaty=1024,
+                            base=seed)
+
+    # here was the error: one needs to normalize the image first. Could be done without copying the array, though
+    img = np.floor((world + .5) * 255).astype(np.uint8) # <- Normalize world first
+    
+    stars = []
+    for x in range(shape[0]):
+        for y in range(shape[1]):
+            stars.append([x,y,img[x][y]])            
+    random.shuffle(stars)
+    
+    return stars
+
+def Starmap():
+    stars = []
+    for star in range(RADIUS):
+        x = random.randrange(0, RADIUS*2)
+        y = random.randrange(0, RADIUS*2)
+        size = random.randrange(1,3)
+        stars.append([x,y,size])
+#         angle = random.random()*360
+# #        distance = random.randrange(STAR_SIZE, int(0.9*RADIUS))
+#         distance = random.randrange(int(settings['sun_size']), int(0.9*RADIUS))
+#         position = (CENTER[0] + AngleToCoords(angle, distance)[0], CENTER[1] + AngleToCoords(angle, distance)[1])
+
+    return stars
+
 def Background():
+    global galaxy
     background = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
 #    pygame.draw.rect(background, (0,0,0,255), background.get_rect())
     pygame.draw.circle(background, (0,0,0,0), CENTER, RADIUS)
     pygame.draw.circle(background, MONO_COLOR, CENTER, RADIUS, 1)
+### GALAXY
+#    galaxy_stars = int(0.005*len(galaxy))
+#    galaxy_stars = 40*BG_STARS
+    galaxy_stars = int(settings['galaxy'])
+    if galaxy_stars > len(galaxy):
+        galaxy_stars = len(galaxy)
+    for astar in range(galaxy_stars):
+        x = (CENTER[0] - RADIUS) + galaxy[astar][0]
+        y = (CENTER[1] - RADIUS) + galaxy[astar][1]
+        galaxy_color = ColorMult(MONO_COLOR, (0.8*(galaxy[astar][2]/255)))
+        pygame.draw.circle(background, galaxy_color, (x,y), 1)
+
 ### STARFIELD
-    for star in range(BG_STARS):
-        size = random.randrange(1,3)
-        angle = random.random()*360
-#        distance = random.randrange(STAR_SIZE, int(0.9*RADIUS))
-        distance = random.randrange(int(settings['sun_size']), int(0.9*RADIUS))
-        position = (CENTER[0] + AngleToCoords(angle, distance)[0], CENTER[1] + AngleToCoords(angle, distance)[1])
-        pygame.draw.circle(background, MONO_COLOR, position, size)
-### Milky Way
-    milky_color = ColorMult(MONO_COLOR, 0.5)
-#    print(milky_color)
-#    milky_color = MONO_COLOR
-#    print(milky_color)
-    for star in range(40*BG_STARS):
-        slope = 0.5
-        spread = 0.3
-        x = random.randrange(int(CENTER[0] - RADIUS), int(CENTER[0] + RADIUS)) 
-#        y = (x*slope) + random.randrange(-1*RADIUS*spread, RADIUS*spread)
-        y = int((x-CENTER[0])*slope) + CENTER[1]
-        y += int(RADIUS*spread*(pow(2*random.random(),1.6)*RandSign()))
-#        print(x,y)
-        pygame.draw.circle(background, milky_color, (x,y), 1)
+    for astar in range(int(settings['stars'])):
+        position = ((CENTER[0]-RADIUS) + starmap[astar][0], (CENTER[1]-RADIUS) + starmap[astar][1])
+        pygame.draw.circle(background, MONO_COLOR, position, starmap[astar][2])
+
+# #    for star in range(BG_STARS):
+#     for star in range(int(settings['stars'])):
+#         size = random.randrange(1,3)
+#         angle = random.random()*360
+# #        distance = random.randrange(STAR_SIZE, int(0.9*RADIUS))
+#         distance = random.randrange(int(settings['sun_size']), int(0.9*RADIUS))
+#         position = (CENTER[0] + AngleToCoords(angle, distance)[0], CENTER[1] + AngleToCoords(angle, distance)[1])
+#         pygame.draw.circle(background, MONO_COLOR, position, size)
+
+# ### Milky Way
+#     milky_color = ColorMult(MONO_COLOR, 0.5)
+# #    print(milky_color)
+# #    milky_color = MONO_COLOR
+# #    print(milky_color)
+#     for star in range(40*BG_STARS):
+#         slope = 0.5
+#         spread = 0.3
+#         x = random.randrange(int(CENTER[0] - RADIUS), int(CENTER[0] + RADIUS)) 
+# #        y = (x*slope) + random.randrange(-1*RADIUS*spread, RADIUS*spread)
+#         y = int((x-CENTER[0])*slope) + CENTER[1]
+#         y += int(RADIUS*spread*(pow(2*random.random(),1.6)*RandSign()))
+# #        print(x,y)
+#         pygame.draw.circle(background, milky_color, (x,y), 1)
         
     return background.convert_alpha()
 
@@ -1053,6 +1157,11 @@ def HUD(screen):
 #%% Game Setup
 
 SetColor(settings)
+print('Generating Galaxy Map...')
+galaxy = FractalNoiseMap()
+starmap = Starmap()
+
+print('Setting Up Game Assets...')
 
 spawn_player1_event = pygame.USEREVENT + 1
 spawn_player2_event = pygame.USEREVENT + 2
@@ -1094,6 +1203,7 @@ player2 = Player(2, 3)
 #all_sprites.add(player1)
 #all_sprites.add(player2)
 
+print('Starting Game...')
 
 # System loop
 running = True
@@ -1212,6 +1322,11 @@ while running:
                             player2.color = COLOR2
                             player2.DrawType(player2.shiptype)
                             lamp_surf_player2 = LampSurf(COLOR2)
+                        if item.control == 'stars' or item.control == 'galaxy':
+                            background = Background()
+                            pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
+                            fade_fill.blit(background, (0,0))
+
     
     
             elif event.type == spawn_player1_event:
@@ -1314,6 +1429,10 @@ while running:
     #                lamp_surfs_player1 = LampSurfs(COLOR1)
                 if item.control == 'fade_param':
                     fade_fill.set_alpha(settings['fade_param'])
+                if item.control == 'stars' or item.control == 'galaxy':
+                    background = Background()
+                    pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
+                    fade_fill.blit(background, (0,0))
             
             if (item.control == 'p1_hue') or (item.control == 'p1_sat') or (item.control == 'p1_lum'):   
                 font.fgcolor = COLOR1
