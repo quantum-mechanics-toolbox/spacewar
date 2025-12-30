@@ -2,7 +2,7 @@
 
 import pygame
 import pygame.freetype
-from operator import add, sub
+#from operator import add, sub
 import random
 import math
 import os
@@ -13,7 +13,8 @@ import colorsys
 import noise
 import numpy as np
 # Hardware
-import RPi.GPIO as GPIO
+#import gpiod
+#import RPi.GPIO as GPIO ###for RPi4
 import board
 import digitalio
 import busio
@@ -23,15 +24,22 @@ from adafruit_mcp3xxx.analog_in import AnalogIn
 
 #%% Hardware Setup
 
-# Setup IO pins
-Switch1 = 17 
-Switch2 = 27 
+# # Setup IO pins
+#                            Switch1 = 17 
+# Switch2 = 27 
                                        
-GPIO.setup(Switch1, GPIO.IN)
-GPIO.setup(Switch2, GPIO.IN)
+# GPIO.setup(Switch1, GPIO.IN)
+# GPIO.setup(Switch2, GPIO.IN)
+Switch1 = digitalio.DigitalInOut(board.D17)
+Switch2 = digitalio.DigitalInOut(board.D27)
+
+Switch1.direction = digitalio.Direction.INPUT
+Switch2.direction = digitalio.Direction.INPUT
+
+
 
 # Try to create a Digital input
-pin = digitalio.DigitalInOut(board.D4)
+#pin = digitalio.DigitalInOut(board.D4)
 print("Digital IO ok!")
 
 # Try to create an I2C device
@@ -60,7 +68,9 @@ chan3 = AnalogIn(mcp, MCP.P3)
 chan4 = AnalogIn(mcp, MCP.P4)
 chan5 = AnalogIn(mcp, MCP.P5)
 
-KNOB_NOISE = 577 
+#KNOB_NOISE = 577 #PI4
+KNOB_NOISE = 1280 #PI5
+KNOB_WAKE = 2.0
 #MAX_ABS = 0
 #print(KNOB_NOISE)
 
@@ -129,6 +139,7 @@ control_label_pos.append((UI19_POS[0]+200,UI19_POS[1]+(4*LABEL_SIZE)))
 # define colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
+DARK = (10, 10, 10)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0) # HLS = 0.333, 0.5, 1.0
 CYAN = (0, 255, 255)
@@ -214,6 +225,7 @@ template = pygame.transform.scale(template, (WIDTH, HEIGHT))
         
 class control():
     def __init__(self, channel, scale, control, minval, maxval, settings):
+        self.channel_num = channel
         if channel == 0:
             self.channel = AnalogIn(mcp, MCP.P0)
         if channel == 1:
@@ -242,12 +254,20 @@ class control():
     
     def ReadControl(self):
         value = self.channel.value
+        global KnobOffTime
 #        global MAX_ABS
+#        now = time.time()
+#        if (now>KnobOffTime[self.channel_num]) and abs(value - self.lastvalue)>KNOB_NOISE:
+#            KnobOffTime[channel] = now + KNOB_WAKE
+#        if (now<KnobOffTime[self.channel_num]) and (abs(value - self.lastvalue)>256):
+#        if now<KnobOffTime:dww
         if abs(value - self.lastvalue)>KNOB_NOISE:
+#            KnobOffTime = now + KNOB_WAKE
 #            new_abs = abs(value - self.lastvalue)
 #            if new_abs > MAX_ABS:
 #                MAX_ABS = new_abs
 #                print(MAX_ABS)
+            print("Chan: {:d}\tDiff: {:d}".format(int(self.channel_num), int(abs(value - self.lastvalue))))
             if self.scale == 'LIN':
                 setting_value = self.minval + ((self.maxval-self.minval)*value/65535)
             if self.scale == 'LOG':
@@ -295,8 +315,12 @@ def ReadReadySwitches():
     global READY, SCORE
     start_game = False
     start_menu = False
-    val1 = GPIO.input(Switch1)
-    val2 = GPIO.input(Switch2)
+#    val1 = GPIO.input(Switch1)
+#    val2 = GPIO.input(Switch2)
+    val1 = Switch1.value
+    val2 = Switch2.value
+#    val1 = 0
+#    val2 = 1
     if val1 == 0 and READY[0] == 1:
         print('Player 1 Launch!')
         SCORE = [0,0]
@@ -508,8 +532,8 @@ class Player(pygame.sprite.Sprite):
         elif playernum == 2: self.color = COLOR2
         self.shiptype = shiptype
         self.DrawType(shiptype)
-        self.image_orig.set_colorkey(BLACK)
-        self.image_orig = pygame.transform.scale(self.image_orig, (30,30))
+#        self.image_orig.set_colorkey(BLACK)
+#        self.image_orig = pygame.transform.scale(self.image_orig, (30,30))
         self.image = self.image_orig.copy()
         self.rect = self.image.get_rect()
         self.locx = 0.0
@@ -529,6 +553,7 @@ class Player(pygame.sprite.Sprite):
         self.NewPos()
 
     def DrawType(self, ShipType):
+        global DARK
         self.image_orig = pygame.Surface((40, 40))
         if ShipType==1:
             pygame.draw.polygon(self.image_orig, (self.color[0]/4, self.color[1]/4,self.color[2]/4), ((20,0),(10,40),(30,40)))
@@ -543,9 +568,30 @@ class Player(pygame.sprite.Sprite):
             pygame.draw.polygon(self.image_orig, self.color, ((20,10),(0,30),(0,36),(36,36),(36,30)), 4)
             pygame.draw.polygon(self.image_orig, (self.color[0]/4, self.color[1]/4,self.color[2]/4), ((25,0),(15,0),(15,40),(25,40)))
             pygame.draw.polygon(self.image_orig, self.color, ((25,0),(15,0),(15,36),(25,36)), 4)
-        self.image_orig.set_colorkey(BLACK)
         self.image_orig = pygame.transform.scale(self.image_orig, (30,30))
+        if ShipType==4:
+            self.image_orig = pygame.Surface((13, 64)) # 7x32=224
+            pygame.draw.polygon(self.image_orig, DARK, ((4,46),(0,50),(0,62),(12,62),(12,50),(8,46)), 0)
+            pygame.draw.polygon(self.image_orig, DARK, ((4,12), (4,62), (8,62), (8,12)), 0)
+            pygame.draw.lines(self.image_orig, self.color, False, ((4,46),(0,50),(0,62),(12,62),(12,50),(8,46)), 2)
+            pygame.draw.line(self.image_orig, self.color, (4,12), (4,62), 2)
+            pygame.draw.line(self.image_orig, self.color, (8,12), (8,62), 2)
+            pygame.draw.line(self.image_orig, self.color, (6,2), (6,10), 2)
+#            self.image_orig = pygame.transform.scale(self.image_orig, (14,64)) # 14x64=896
+        if ShipType==5:
+            self.image_orig = pygame.Surface((26, 52)) # 13x26=338
+            pygame.draw.polygon(self.image_orig, DARK, ((12,2),(6,20),(6,30),(10,50),(14,50),(18,30),(18,20)), 0)
+            pygame.draw.polygon(self.image_orig, DARK, ((6,28),(0,40),(0,50),(2,50),(8,44)), 0)
+            pygame.draw.polygon(self.image_orig, DARK, ((18,28),(24,40),(24,50),(22,50),(16,44)), 0)
+            pygame.draw.lines(self.image_orig, self.color, True, ((12,2),(6,20),(6,30),(10,50),(14,50),(18,30),(18,20)), 2)
+            pygame.draw.lines(self.image_orig, self.color, False, ((6,28),(0,40),(0,50),(2,50),(8,44)), 2)
+            pygame.draw.lines(self.image_orig, self.color, False, ((18,28),(24,40),(24,50),(22,50),(16,44)), 2)
+#            pygame.draw.lines(self.image_orig, self.color, False, ((2,23),(0,25),(0,31),(6,31),(6,25),(4,23)), 1)
+#            self.image_orig = pygame.transform.scale(self.image_orig, (26,52)) # 16x52=832
 
+        self.image_orig.set_colorkey(BLACK)
+            
+            
 
     def NewPos(self):
 #        self.locx = (WIDTH/2) - (random.randrange(RADIUS) - (RADIUS/2))
@@ -652,10 +698,13 @@ class Player(pygame.sprite.Sprite):
 #        self.CheckMaxSpeed()
         self.locx += self.speedx
         self.locy += self.speedy
-        self.rect.centerx = self.locx
-        self.rect.centery = self.locy
+        pos_orig = self.image_orig.get_size()
         self.image = pygame.transform.rotate(self.image_orig, self.rot)
-
+        pos_rot = self.image.get_size()
+        offset = (pos_rot[0]-pos_orig[0], pos_rot[1]-pos_orig[1])
+        self.rect.centerx = self.locx - (offset[0]/2)
+        self.rect.centery = self.locy - (offset[1]/2)
+        
     def GetDistance(self):
         Dx = pow(self.rect.centerx - CENTER[0], 2)
         Dy = pow(self.rect.centery - CENTER[1], 2)
@@ -1189,6 +1238,10 @@ LastBulletTime2 = time.time() - settings['bullet_cool']
 LastHyperTime1 = time.time() - settings['hyper_cool']
 LastHyperTime2 = time.time() - settings['hyper_cool']
 
+KnobOffTime = []
+for channel in range(6):
+    KnobOffTime.append(time.time() + KNOB_WAKE)
+
 last_fps = 0
 
 #star = pygame.Surface((STAR_SIZE*2,STAR_SIZE*2))
@@ -1198,8 +1251,10 @@ ships = []
 #for i in range(0,SHIP_NUM):
 #    ships.append(Player())
 #all_sprites.add(ships)
-player1 = Player(1, 2)
-player2 = Player(2, 3)
+#player1 = Player(1, 2)
+#player2 = Player(2, 3)
+player1 = Player(1, 4)
+player2 = Player(2, 5)
 #all_sprites.add(player1)
 #all_sprites.add(player2)
 
@@ -1409,7 +1464,7 @@ while running:
                     pygame.draw.rect(fade_fill, BLACK, fade_fill.get_rect())
                     fade_fill.blit(background, (0,0))
                     if settings['game'] == '1962':
-                        print("foo + " + settings['game'])
+#                        print("foo + " + settings['game'])
                         player1.color = COLOR1
                         player1.DrawType(player1.shiptype)
                         lamp_surf_player1 = LampSurf(COLOR1)

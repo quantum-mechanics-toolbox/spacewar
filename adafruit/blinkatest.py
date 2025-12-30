@@ -8,7 +8,7 @@ import time
 print("Hello, blinka!")
 
 # Try to create a Digital input
-pin = digitalio.DigitalInOut(board.D4)
+# pin = digitalio.DigitalInOut(board.D4)
 print("Digital IO ok!")
 
 # Try to create an I2C device
@@ -77,7 +77,7 @@ while True:
     
     print("{: 0.3f}\t{: 0.3f}\t{: 0.3f}\t{: 0.3f}\t{: 0.3f}\t{: 0.3f}".format(val0, val1, val2, val3, val4, val5))
     print("{: 0.3f}\t{: 0.3f}\t{: 0.3f}\t{: 0.3f}\t{: 0.3f}\t{: 0.3f}".format(val0-lastval0, val1-lastval1, val2-lastval2, val3-lastval3, val4-lastval4, val5-lastval5))
-    print("MAX: {:0.3f}\t AVE: {:0.3f}\t\tMAX HIGH: {:0.3f}".format(maxdiff, avediff, maxhigh))
+    print("MAX: {:0.3f}\t AVE: {:0.3f}\t\tMAX HIGH: {:0.3f} : {:d}".format(maxdiff, avediff, maxhigh, int(maxhigh*65535)))
 
     lastval0 = val0
     lastval1 = val1
